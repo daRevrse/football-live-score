@@ -43,10 +43,32 @@ export const updateScore = (id, homeScore, awayScore) =>
   api.put(`/matches/${id}/score`, { homeScore, awayScore });
 
 // PUT start match
-export const startMatch = (id) => api.put(`/matches/${id}/start`);
+export const startMatch = (id) => {
+  api.put(`/matches/${id}/start`);
+  api.post(`/matches/${id}/start`);
+};
 
 // PUT finish match
-export const finishMatch = (id) => api.put(`/matches/${id}/finish`);
+export const finishMatch = (id) => {
+  api.post(`/matches/${id}/end`);
+  api.put(`/matches/${id}/finish`);
+};
+
+// Pause match
+export const pauseMatch = (id) => api.post(`/matches/${id}/pause`);
+
+// Resume match
+export const resumeMatch = (id) => api.post(`/matches/${id}/resume`);
+
+// Start second half
+export const startSecondHalf = (id) => api.post(`/matches/${id}/second-half`);
+
+// Add additional time
+export const setAdditionalTime = (id, half, minutes) =>
+  api.post(`/matches/${id}/additional-time`, { half, minutes });
+
+// GET match state
+export const getMatchState = (id) => api.get(`/matches/${id}/timer`);
 
 // ==================== MATCH EVENTS API ====================
 
@@ -224,45 +246,3 @@ export const getLiveMatches = async () => {
     );
   }
 };
-
-// ==================== EXPORT DEFAULT ====================
-
-// Export d'un objet avec toutes les fonctions pour une utilisation plus propre
-// export default {
-//   // Matches
-//   matches: {
-//     getAll: getMatches,
-//     getById: getMatch,
-//     create: createMatch,
-//     update: updateMatch,
-//     delete: deleteMatch,
-//     updateScore,
-//     start: startMatch,
-//     finish: finishMatch,
-//     createComplete: createCompleteMatch,
-//     getToday: getTodayMatches,
-//     getLive: getLiveMatches,
-//   },
-
-//   // Events
-//   events: {
-//     getMatchEvents,
-//     addEvent: addMatchEvent,
-//     addGoal,
-//     addCard,
-//   },
-
-//   // Teams
-//   teams: {
-//     getAll: getTeams,
-//     getById: getTeam,
-//     create: createTeam,
-//     update: updateTeam,
-//     delete: deleteTeam,
-//     getMatches: getTeamMatches,
-//     getHomeMatches: getTeamHomeMatches,
-//     getAwayMatches: getTeamAwayMatches,
-//     getStats: getTeamStats,
-//     getLeaderboard,
-//   }
-// };

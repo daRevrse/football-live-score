@@ -233,11 +233,6 @@ router.post("/:id/events", async (req, res) => {
   try {
     const { type, teamId, player, minute } = req.body;
 
-    console.log("type", type);
-    console.log("teamId", teamId);
-    console.log("player", player);
-    console.log("minute", minute);
-
     const match = await db.Match.findByPk(req.params.id);
     if (!match) return res.status(404).json({ error: "Match not found" });
 
@@ -263,23 +258,11 @@ router.post("/:id/events", async (req, res) => {
 
     if (type === "home_goal") {
       match.homeScore += 1;
-      console.log("homeScore", match.homeScore);
       await match.save();
     } else if (type === "away_goal") {
       match.awayScore += 1;
-      console.log("awayScore", match.awayScore);
       await match.save();
     }
-
-    // Update score if goal
-    // if (type === "goal") {
-    //   if (teamId === match.homeTeamId) {
-    //     match.homeScore += 1;
-    //   } else if (teamId === match.awayTeamId) {
-    //     match.awayScore += 1;
-    //   }
-    //   await match.save();
-    // }
 
     const updatedMatch = await db.Match.findByPk(match.id, {
       include: [
@@ -326,13 +309,26 @@ router.get("/:id/events", async (req, res) => {
   }
 });
 
+// Démarrer un match
+router.post("/:id/start", async (req, res) => {
+  try {
+    const result = await req.app.get("timerService").startMatch(req.params.id);
+
+    if (result.success) {
+      res.json({ message: result.message });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // PUT start match (change status to 'live')
 router.put("/:id/start", async (req, res) => {
   try {
     const match = await db.Match.findByPk(req.params.id);
     if (!match) return res.status(404).json({ error: "Match not found" });
-
-    console.log("match", match);
 
     if (match.status !== "scheduled") {
       return res
@@ -361,6 +357,53 @@ router.put("/:id/start", async (req, res) => {
   } catch (error) {
     console.error("Error starting match:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Mettre en pause
+router.post("/:id/pause", async (req, res) => {
+  try {
+    const result = await req.app.get("timerService").pauseMatch(req.params.id);
+
+    if (result.success) {
+      res.json({ message: result.message });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Reprendre
+router.post("/:id/resume", async (req, res) => {
+  try {
+    const result = await req.app.get("timerService").resumeMatch(req.params.id);
+
+    if (result.success) {
+      res.json({ message: result.message });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Démarrer la seconde mi-temps
+router.post("/:id/second-half", async (req, res) => {
+  try {
+    const result = await req.app
+      .get("timerService")
+      .startSecondHalf(req.params.id);
+
+    if (result.success) {
+      res.json({ message: result.message });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
@@ -397,6 +440,68 @@ router.put("/:id/finish", async (req, res) => {
   } catch (error) {
     console.error("Error finishing match:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Terminer le match
+router.post("/:id/end", async (req, res) => {
+  try {
+    const result = await req.app.get("timerService").endMatch(req.params.id);
+    const updatedMatch = await db.Match.findByPk(req.params.id, {
+      include: [
+        { model: db.Team, as: "homeTeam" },
+        { model: db.Team, as: "awayTeam" },
+        { model: db.Event, as: "events" },
+      ],
+    });
+    if (req.io) {
+      req.io.to(`match:${req.params.id}`).emit("match:finished", updatedMatch);
+    }
+
+    req.io.to(`match:${req.params.id}`).emit("match_updated", updatedMatch);
+    req.io.emit("match_updated", updatedMatch);
+    if (result.success) {
+      res.json({ message: result.message });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Définir le temps additionnel
+router.post("/:id/additional-time", async (req, res) => {
+  try {
+    const { half, minutes } = req.body;
+    const result = await req.app
+      .get("timerService")
+      .setAdditionalTime(req.params.id, half, minutes);
+
+    if (result.success) {
+      res.json({ message: result.message });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Obtenir l'état actuel du match
+router.get("/:id/timer", async (req, res) => {
+  try {
+    const state = req.app
+      .get("timerService")
+      .getMatchState(parseInt(req.params.id));
+
+    if (state) {
+      res.json(state);
+    } else {
+      res.status(404).json({ error: "État du match non trouvé" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 

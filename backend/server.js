@@ -3,10 +3,10 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-// const socketIo = require("socket.io");
 const db = require("./models");
 const teamRoutes = require("./routes/teams");
 const matchRoutes = require("./routes/matches");
+const MatchTimerService = require("./services/MatchTimerService");
 
 const app = express();
 app.use(cors());
@@ -26,6 +26,10 @@ app.use((req, res, next) => {
   req.io = io;
   next();
 });
+
+// Initialise le service de timer avec Socket.IO
+const timerService = new MatchTimerService(io);
+app.set("timerService", timerService);
 
 // Routes
 app.use("/teams", teamRoutes);
@@ -49,10 +53,10 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 db.sequelize
   .sync({
-    /* force: true */
+    // force: true,
   })
   .then(() => {
     server.listen(PORT, () => console.log(`Server listening on ${PORT}`));

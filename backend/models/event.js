@@ -4,8 +4,8 @@ module.exports = (sequelize, DataTypes) => {
     "Event",
     {
       matchId: { type: DataTypes.INTEGER, allowNull: false },
-      type: { type: DataTypes.STRING, allowNull: false }, // 'goal', 'yellow_card'...
-      teamId: { type: DataTypes.INTEGER, allowNull: false },
+      type: { type: DataTypes.STRING, allowNull: false },
+      teamId: { type: DataTypes.INTEGER, allowNull: true },
       player: { type: DataTypes.STRING },
       minute: { type: DataTypes.INTEGER },
     },

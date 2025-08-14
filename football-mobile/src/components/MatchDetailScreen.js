@@ -15,7 +15,7 @@ import socket from "../services/socket";
 import axios from "axios";
 
 const { width } = Dimensions.get("window");
-const API_URL = "http://192.168.1.65:5000";
+const API_URL = "http://192.168.1.75:5000";
 
 export default function MatchDetailScreen({ route, navigation }) {
   const { id } = route.params;

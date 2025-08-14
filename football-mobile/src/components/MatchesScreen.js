@@ -18,7 +18,7 @@ import MatchItem from "./MatchItem";
 import axios from "axios";
 
 const { width, height } = Dimensions.get("window");
-const API_URL = "http://192.168.1.65:5000"; // <--- adapte selon ton backend
+const API_URL = "http://192.168.1.75:5000"; // <--- adapte selon ton backend
 
 export default function MatchesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
@@ -67,11 +67,23 @@ export default function MatchesScreen({ navigation }) {
       }
     };
 
+    // const handleTimerUpdate = (payload) => {
+    //   if (payload.match.matchId === match.id) {
+    //     setTimerState((prev) => ({
+    //       ...prev,
+    //       currentMinute: payload.match.currentMinute,
+    //       currentSecond: payload.match.currentSecond,
+    //       isRunning: payload.match.status === "live",
+    //     }));
+    //   }
+    // };
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("match_created", onCreated);
     socket.on("match_updated", onUpdated);
     socket.on("match:event", onEvent);
+    socket.on("match:timer", onUpdated);
 
     return () => {
       mountedRef.current = false;
@@ -80,6 +92,7 @@ export default function MatchesScreen({ navigation }) {
       socket.off("match_created", onCreated);
       socket.off("match_updated", onUpdated);
       socket.off("match:event", onEvent);
+      socket.off("match:timer", onUpdated);
     };
   }, []);
 

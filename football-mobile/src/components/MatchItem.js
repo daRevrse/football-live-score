@@ -1,4 +1,3 @@
-// src/components/MatchItem.js
 import React from "react";
 import {
   View,
@@ -24,6 +23,13 @@ export default function MatchItem({ match, onPress }) {
   const homeScore = match.homeScore ?? match.home_score ?? 0;
   const awayScore = match.awayScore ?? match.away_score ?? 0;
   const status = match.status || "scheduled";
+  const timerState = {
+    currentMinute: match.currentMinute || 0,
+    currentSecond: match.currentSecond || 0,
+    isRunning: match.status === "live",
+    additionalTimeFirstHalf: match.additionalTimeFirstHalf || 0,
+    additionalTimeSecondHalf: match.additionalTimeSecondHalf || 0,
+  };
 
   // Fonction pour obtenir les couleurs selon le statut
   const getStatusStyle = () => {
@@ -107,7 +113,7 @@ export default function MatchItem({ match, onPress }) {
       {status === "live" && (
         <View style={styles.liveIndicator}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveText}>LIVE</Text>
+          <Text style={styles.liveText}>{timerState.currentMinute}'</Text>
         </View>
       )}
 
@@ -211,7 +217,7 @@ const styles = StyleSheet.create({
   liveIndicator: {
     position: "absolute",
     top: 10,
-    right: 140,
+    right: 165,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#ff4d4f",
