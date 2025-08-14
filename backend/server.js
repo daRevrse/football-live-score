@@ -56,7 +56,7 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 db.sequelize
   .sync({
-    // force: true,
+    force: true,
   })
   .then(() => {
     server.listen(PORT, () => console.log(`Server listening on ${PORT}`));

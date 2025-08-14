@@ -1,35 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Card,
-  InputNumber,
-  Button,
-  Typography,
-  Space,
-  Divider,
-  Tag,
-  message,
-  Popconfirm,
-  Row,
-  Col,
-  Select,
-  Progress,
-  Badge,
-  Alert,
-  Statistic,
-} from "antd";
-import {
-  SaveOutlined,
-  EditOutlined,
-  CloseOutlined,
-  TrophyOutlined,
-  CalendarOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  StopOutlined,
-  ClockCircleOutlined,
-  FastForwardOutlined,
-} from "@ant-design/icons";
-import {
   updateScore,
   startMatch,
   finishMatch,
@@ -42,12 +12,26 @@ import {
   getMatch,
 } from "../services/api";
 import io from "socket.io-client";
+import {
+  Users,
+  X,
+  Calendar,
+  Clock,
+  MapPin,
+  Trophy,
+  RefreshCw,
+  Play,
+  Pause,
+  FastForward,
+  Edit,
+  Save,
+  AlertCircle,
+  ChevronRight,
+  Ban,
+} from "lucide-react";
+import { message } from "antd";
 
-const { Title, Text } = Typography;
-const { Countdown } = Statistic;
-
-// Connexion Socket.IO pour le temps réel
-// const socket = io("http://192.168.1.75:5000");
+// Connexion Socket.IO
 const socket = io("http://localhost:5000");
 
 export default function MatchEditor({
@@ -55,19 +39,19 @@ export default function MatchEditor({
   onClose,
   onUpdate,
 }) {
-  // État local pour l'objet match
   const [match, setMatch] = useState(initialMatch);
   const [scores, setScores] = useState({
     home: initialMatch.homeScore || 0,
     away: initialMatch.awayScore || 0,
   });
+  const [isLoading, setIsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState([]);
   const [eventType, setEventType] = useState("home_goal");
   const [eventMinute, setEventMinute] = useState("");
   const [eventPlayer, setEventPlayer] = useState("");
+  const [error, setError] = useState(null);
 
-  // États pour le chrono
   const [timerState, setTimerState] = useState({
     currentMinute: initialMatch.currentMinute || 0,
     currentSecond: initialMatch.currentSecond || 0,
@@ -80,6 +64,229 @@ export default function MatchEditor({
     half: 1,
     minutes: 0,
   });
+
+  // Styles CSS intégrés
+  const styles = {
+    container: {
+      backgroundColor: "white",
+      padding: "24px",
+      width: "100%",
+      maxWidth: "1000px",
+      margin: "0 auto",
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "24px",
+    },
+    title: {
+      fontSize: "20px",
+      fontWeight: "bold",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      margin: 0,
+    },
+    errorAlert: {
+      padding: "16px",
+      borderRadius: "8px",
+      backgroundColor: "#fef2f2",
+      border: "1px solid #fecaca",
+      color: "#991b1b",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      marginBottom: "24px",
+    },
+    timerContainer: {
+      backgroundColor: "#f8fafc",
+      borderRadius: "8px",
+      padding: "16px",
+      marginBottom: "24px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    timerText: {
+      fontSize: "24px",
+      fontWeight: "bold",
+      color: "#1e40af",
+    },
+    timerPeriod: {
+      color: "#64748b",
+      fontSize: "14px",
+    },
+    progressBar: {
+      height: "8px",
+      borderRadius: "4px",
+      backgroundColor: "#e2e8f0",
+      marginTop: "8px",
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: "#3b82f6",
+    },
+    matchInfo: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      marginBottom: "16px",
+      color: "#64748b",
+    },
+    scoreContainer: {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: "24px",
+      marginBottom: "24px",
+    },
+    teamContainer: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: "8px",
+    },
+    teamName: {
+      fontSize: "18px",
+      fontWeight: "600",
+    },
+    scoreInput: {
+      width: "80px",
+      fontSize: "24px",
+      textAlign: "center",
+      padding: "8px",
+      border: "1px solid #e2e8f0",
+      borderRadius: "8px",
+    },
+    divider: {
+      color: "#64748b",
+      fontWeight: "bold",
+    },
+    actions: {
+      display: "flex",
+      gap: "12px",
+      marginBottom: "24px",
+      flexWrap: "wrap",
+    },
+    button: {
+      padding: "10px 16px",
+      borderRadius: "8px",
+      fontWeight: "500",
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      border: "none",
+      fontSize: "14px",
+    },
+    buttonPrimary: {
+      background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+      color: "white",
+    },
+    buttonSecondary: {
+      backgroundColor: "#f1f5f9",
+      color: "#334155",
+    },
+    buttonDanger: {
+      backgroundColor: "#fee2e2",
+      color: "#b91c1c",
+    },
+    buttonSuccess: {
+      backgroundColor: "#dcfce7",
+      color: "#166534",
+    },
+    buttonWarning: {
+      backgroundColor: "#fef3c7",
+      color: "#92400e",
+    },
+    buttonHover: {
+      transform: "translateY(-1px)",
+      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+    },
+    buttonDisabled: {
+      opacity: "0.7",
+      cursor: "not-allowed",
+    },
+    eventsContainer: {
+      backgroundColor: "#f8fafc",
+      borderRadius: "8px",
+      padding: "16px",
+    },
+    eventsHeader: {
+      fontSize: "16px",
+      fontWeight: "600",
+      marginBottom: "16px",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    eventForm: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "12px",
+      marginBottom: "16px",
+    },
+    eventInput: {
+      padding: "8px 12px",
+      border: "1px solid #e2e8f0",
+      borderRadius: "8px",
+      fontSize: "14px",
+    },
+    eventList: {
+      maxHeight: "300px",
+      overflowY: "auto",
+    },
+    eventItem: {
+      display: "flex",
+      alignItems: "center",
+      padding: "8px",
+      borderRadius: "6px",
+      backgroundColor: "white",
+      marginBottom: "8px",
+    },
+    eventMinute: {
+      fontWeight: "bold",
+      marginRight: "8px",
+    },
+    eventPlayer: {
+      flex: 1,
+    },
+    eventType: {
+      fontSize: "12px",
+      color: "#64748b",
+    },
+    additionalTimeContainer: {
+      backgroundColor: "#f8fafc",
+      borderRadius: "8px",
+      padding: "16px",
+      marginTop: "16px",
+    },
+    statusTag: {
+      padding: "4px 8px",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "500",
+    },
+    statusLive: {
+      backgroundColor: "#fee2e2",
+      color: "#b91c1c",
+    },
+    statusPaused: {
+      backgroundColor: "#fef3c7",
+      color: "#92400e",
+    },
+    statusFinished: {
+      backgroundColor: "#dcfce7",
+      color: "#166534",
+    },
+    statusScheduled: {
+      backgroundColor: "#e0f2fe",
+      color: "#0369a1",
+    },
+  };
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -307,28 +514,35 @@ export default function MatchEditor({
         away: matchRes.data.awayScore || 0,
       });
     } catch (err) {
-      message.error("Erreur lors de l'ajout de l'événement");
+      // message.error("Erreur lors de l'ajout de l'événement");
     } finally {
       setLoading(false);
     }
   };
 
   const getStatusTag = () => {
+    const baseStyle = styles.statusTag;
     switch (match.status) {
-      case "scheduled":
-        return <Tag color="blue">À venir</Tag>;
       case "live":
         return (
-          <Badge status="processing">
-            <Tag color="red">En cours</Tag>
-          </Badge>
+          <span style={{ ...baseStyle, ...styles.statusLive }}>En cours</span>
         );
       case "paused":
-        return <Tag color="orange">En pause</Tag>;
+        return (
+          <span style={{ ...baseStyle, ...styles.statusPaused }}>En pause</span>
+        );
       case "finished":
-        return <Tag color="green">Terminé</Tag>;
+        return (
+          <span style={{ ...baseStyle, ...styles.statusFinished }}>
+            Terminé
+          </span>
+        );
       default:
-        return <Tag>{match.status}</Tag>;
+        return (
+          <span style={{ ...baseStyle, ...styles.statusScheduled }}>
+            À venir
+          </span>
+        );
     }
   };
 
@@ -353,332 +567,327 @@ export default function MatchEditor({
   };
 
   return (
-    <Card
-      title={
-        <Space>
-          <TrophyOutlined />
-          <Title level={4} style={{ margin: 0 }}>
-            Contrôle du match
-          </Title>
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h2 style={styles.title}>
+          <Trophy size={20} />
+          Contrôle du match
+        </h2>
+        <div>
           {getStatusTag()}
-        </Space>
-      }
-      extra={onClose && <Button icon={<CloseOutlined />} onClick={onClose} />}
-      style={{ width: "100%", maxWidth: 1000 }}
-    >
-      {/* Chrono et contrôles en temps réel */}
-      {match.status !== "scheduled" && (
-        <Alert
-          message={
-            <Row align="middle" justify="space-between">
-              <Col>
-                <Space>
-                  <ClockCircleOutlined />
-                  <Text strong style={{ fontSize: 18 }}>
-                    {formatTime()}
-                  </Text>
-                  <Text type="secondary">({getMatchPeriod()})</Text>
-                </Space>
-              </Col>
-              <Col>
-                <Progress
-                  percent={getProgressPercent()}
-                  showInfo={false}
-                  strokeColor="#52c41a"
-                  trailColor="#f0f0f0"
-                  strokeWidth={8}
-                  style={{ width: 200 }}
-                />
-              </Col>
-            </Row>
-          }
-          type={timerState.isRunning ? "success" : "warning"}
-          style={{ marginBottom: 16 }}
-        />
+          {/* {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                marginLeft: "16px",
+              }}
+            >
+              <X size={20} />
+            </button>
+          )} */}
+        </div>
+      </div>
+
+      {error && (
+        <div style={styles.errorAlert}>
+          <AlertCircle size={18} />
+          {error}
+        </div>
       )}
 
-      <Row gutter={24}>
-        {/* Colonne principale - Match */}
-        <Col span={12}>
-          <Space direction="vertical" size="large" style={{ width: "100%" }}>
-            <div>
-              <Title level={5}>
-                <CalendarOutlined /> {new Date(match.startAt).toLocaleString()}
-              </Title>
+      {/* Timer */}
+      {match.status !== "scheduled" && (
+        <div style={styles.timerContainer}>
+          <div>
+            <div style={styles.timerText}>{formatTime()}</div>
+            <div style={styles.timerPeriod}>{getMatchPeriod()}</div>
+          </div>
+          <div style={{ width: "200px" }}>
+            <div style={styles.progressBar}>
+              <div
+                style={{
+                  ...styles.progressFill,
+                  width: `${getProgressPercent()}%`,
+                }}
+              ></div>
             </div>
+          </div>
+        </div>
+      )}
 
-            <Row gutter={16} align="middle" justify="center">
-              <Col span={10} style={{ textAlign: "center" }}>
-                <Title level={4}>
-                  {match.homeTeam?.name || "Équipe domicile"}
-                </Title>
-                <InputNumber
-                  min={0}
-                  value={scores.home}
-                  onChange={(value) => handleScoreChange("home", value)}
-                  disabled={match.status !== "live"}
-                  size="large"
-                  style={{ fontSize: 24, width: 80 }}
-                />
-              </Col>
+      {/* Informations du match */}
+      <div style={styles.matchInfo}>
+        <Calendar size={16} />
+        <span>{new Date(match.startAt).toLocaleString()}</span>
+        <ChevronRight size={16} />
+        <MapPin size={16} />
+        <span>{match.location || "Lieu non spécifié"}</span>
+      </div>
 
-              <Col span={4} style={{ textAlign: "center" }}>
-                <Divider>VS</Divider>
-              </Col>
+      {/* Score */}
+      <div style={styles.scoreContainer}>
+        <div style={styles.teamContainer}>
+          <div style={styles.teamName}>
+            {match.homeTeam?.name || "Équipe domicile"}
+          </div>
+          <input
+            type="number"
+            min="0"
+            value={scores.home}
+            onChange={(e) =>
+              handleScoreChange("home", parseInt(e.target.value) || 0)
+            }
+            disabled={match.status !== "live"}
+            style={styles.scoreInput}
+          />
+        </div>
 
-              <Col span={10} style={{ textAlign: "center" }}>
-                <Title level={4}>
-                  {match.awayTeam?.name || "Équipe extérieure"}
-                </Title>
-                <InputNumber
-                  min={0}
-                  value={scores.away}
-                  onChange={(value) => handleScoreChange("away", value)}
-                  disabled={match.status !== "live"}
-                  size="large"
-                  style={{ fontSize: 24, width: 80 }}
-                />
-              </Col>
-            </Row>
+        <div style={styles.divider}>VS</div>
 
-            {/* Contrôles de match */}
-            <Space wrap>
-              {match.status === "scheduled" && (
-                <Button
-                  type="primary"
-                  icon={<PlayCircleOutlined />}
-                  onClick={handleStartMatch}
-                  loading={loading}
-                  size="large"
+        <div style={styles.teamContainer}>
+          <div style={styles.teamName}>
+            {match.awayTeam?.name || "Équipe extérieure"}
+          </div>
+          <input
+            type="number"
+            min="0"
+            value={scores.away}
+            onChange={(e) =>
+              handleScoreChange("away", parseInt(e.target.value) || 0)
+            }
+            disabled={match.status !== "live"}
+            style={styles.scoreInput}
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={styles.actions}>
+        {match.status === "scheduled" && (
+          <button
+            style={{ ...styles.button, ...styles.buttonPrimary }}
+            onClick={handleStartMatch}
+            disabled={isLoading}
+            onMouseEnter={(e) =>
+              !isLoading && Object.assign(e.target.style, styles.buttonHover)
+            }
+            onMouseLeave={(e) => {
+              e.target.style.transform = "none";
+              e.target.style.boxShadow = "none";
+            }}
+          >
+            <Play size={16} />
+            Démarrer le match
+          </button>
+        )}
+
+        {match.status === "live" && (
+          <>
+            <button
+              style={{ ...styles.button, ...styles.buttonSuccess }}
+              onClick={saveScore}
+              disabled={isLoading}
+            >
+              <Save size={16} />
+              Sauvegarder le score
+            </button>
+
+            <button
+              style={{ ...styles.button, ...styles.buttonWarning }}
+              onClick={handlePauseMatch}
+              disabled={isLoading}
+            >
+              <Pause size={16} />
+              Pause
+            </button>
+
+            {timerState.currentMinute >= 45 &&
+              timerState.currentMinute < 50 && (
+                <button
+                  style={{ ...styles.button, ...styles.buttonSecondary }}
+                  onClick={handleStartSecondHalf}
+                  disabled={isLoading}
                 >
-                  Démarrer le match
-                </Button>
+                  <FastForward size={16} />
+                  2ème mi-temps
+                </button>
               )}
 
-              {match.status === "live" && (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={saveScore}
-                    loading={loading}
-                  >
-                    Corriger le score
-                  </Button>
+            <button
+              style={{ ...styles.button, ...styles.buttonDanger }}
+              onClick={() => {
+                if (
+                  window.confirm("Êtes-vous sûr de vouloir terminer le match ?")
+                ) {
+                  handleFinishMatch();
+                }
+              }}
+              disabled={isLoading}
+            >
+              <Ban size={16} />
+              Terminer
+            </button>
+          </>
+        )}
 
-                  <Button
-                    icon={<PauseCircleOutlined />}
-                    onClick={handlePauseMatch}
-                    loading={loading}
-                  >
-                    Pause
-                  </Button>
+        {match.status === "paused" && (
+          <button
+            style={{ ...styles.button, ...styles.buttonPrimary }}
+            onClick={handleResumeMatch}
+            disabled={isLoading}
+          >
+            <Play size={16} />
+            Reprendre
+          </button>
+        )}
+      </div>
 
-                  {timerState.currentMinute >= 45 &&
-                    timerState.currentMinute < 50 && (
-                      <Button
-                        icon={<FastForwardOutlined />}
-                        onClick={handleStartSecondHalf}
-                        loading={loading}
-                        type="dashed"
-                      >
-                        2ème mi-temps
-                      </Button>
-                    )}
+      {/* Événements et temps additionnel */}
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}
+      >
+        <div style={styles.eventsContainer}>
+          <h3 style={styles.eventsHeader}>
+            <Edit size={16} />
+            Événements du match
+          </h3>
 
-                  <Popconfirm
-                    title="Terminer le match?"
-                    onConfirm={handleFinishMatch}
-                    okText="Oui"
-                    cancelText="Non"
-                  >
-                    <Button danger icon={<StopOutlined />}>
-                      Terminer
-                    </Button>
-                  </Popconfirm>
-                </>
-              )}
+          {match.status === "live" && (
+            <div style={styles.eventForm}>
+              <select
+                value={eventType}
+                onChange={(e) => setEventType(e.target.value)}
+                style={styles.eventInput}
+              >
+                <option value="home_goal">⚽ But domicile</option>
+                <option value="away_goal">⚽ But extérieur</option>
+                <option value="yellow_card">🟨 Carton jaune</option>
+                <option value="red_card">🟥 Carton rouge</option>
+                <option value="substitution">🔄 Remplacement</option>
+              </select>
 
-              {match.status === "paused" && (
-                <Button
-                  type="primary"
-                  icon={<PlayCircleOutlined />}
-                  onClick={handleResumeMatch}
-                  loading={loading}
-                >
-                  Reprendre
-                </Button>
-              )}
-            </Space>
-          </Space>
-        </Col>
+              <input
+                type="number"
+                placeholder="Minute"
+                value={eventMinute}
+                onChange={(e) => setEventMinute(e.target.value)}
+                min="0"
+                max="120"
+                style={styles.eventInput}
+              />
 
-        {/* Colonne droite - Événements */}
-        <Col span={12}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Title level={5}>Événements du match</Title>
+              <input
+                type="text"
+                placeholder="Joueur"
+                value={eventPlayer}
+                onChange={(e) => setEventPlayer(e.target.value)}
+                style={styles.eventInput}
+              />
 
-              {match.status === "live" && (
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <Row gutter={8}>
-                    <Col span={24}>
-                      <Select
-                        value={eventType}
-                        onChange={setEventType}
-                        style={{ width: "100%" }}
-                      >
-                        <Select.Option value="home_goal">
-                          ⚽ But domicile
-                        </Select.Option>
-                        <Select.Option value="away_goal">
-                          ⚽ But extérieur
-                        </Select.Option>
-                        <Select.Option value="yellow_card">
-                          🟨 Carton jaune
-                        </Select.Option>
-                        <Select.Option value="red_card">
-                          🟥 Carton rouge
-                        </Select.Option>
-                        <Select.Option value="substitution">
-                          🔄 Remplacement
-                        </Select.Option>
-                      </Select>
-                    </Col>
-                  </Row>
+              <button
+                style={{ ...styles.button, ...styles.buttonPrimary }}
+                onClick={addEvent}
+                disabled={isLoading}
+              >
+                Ajouter
+              </button>
+            </div>
+          )}
 
-                  <Row gutter={8}>
-                    <Col span={12}>
-                      <InputNumber
-                        placeholder="Minute"
-                        value={eventMinute}
-                        onChange={setEventMinute}
-                        min={0}
-                        max={120}
-                        style={{ width: "100%" }}
-                      />
-                    </Col>
-                    <Col span={12}>
-                      <Button
-                        onClick={addEvent}
-                        loading={loading}
-                        icon={<EditOutlined />}
-                        type="primary"
-                        style={{ width: "100%" }}
-                      >
-                        Ajouter
-                      </Button>
-                    </Col>
-                  </Row>
-
-                  <input
-                    type="text"
-                    placeholder="Nom du joueur"
-                    value={eventPlayer}
-                    onChange={(e) => setEventPlayer(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "6px 11px",
-                      border: "1px solid #d9d9d9",
-                      borderRadius: "6px",
-                    }}
-                  />
-                </Space>
-              )}
-
-              <div style={{ maxHeight: 250, overflowY: "auto", marginTop: 16 }}>
-                {events.length > 0 ? (
-                  events
-                    .sort((a, b) => b.minute - a.minute) // Trier par minute décroissante
-                    .map((event, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          marginBottom: 8,
-                          padding: 8,
-                          backgroundColor: "#f8f9fa",
-                          borderRadius: 4,
-                        }}
-                      >
-                        <Text strong>{event.minute}'</Text>
-                        <Text style={{ marginLeft: 8 }}>
-                          {event.type === "home_goal" ||
-                          event.type === "away_goal"
-                            ? "⚽"
-                            : event.type === "yellow_card"
-                            ? "🟨"
-                            : event.type === "red_card"
-                            ? "🟥"
-                            : event.type === "substitution"
-                            ? "🔄"
-                            : "📝"}{" "}
-                          {event.player}
-                        </Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {event.type.replace("_", " ")}
-                        </Text>
+          <div style={styles.eventList}>
+            {events.length > 0 ? (
+              events
+                .sort((a, b) => b.minute - a.minute)
+                .map((event, index) => (
+                  <div key={index} style={styles.eventItem}>
+                    <div style={styles.eventMinute}>{event.minute}'</div>
+                    <div style={styles.eventPlayer}>
+                      {event.player}
+                      <div style={styles.eventType}>
+                        {event.type.replace("_", " ")}
                       </div>
-                    ))
-                ) : (
-                  <Text type="secondary">Aucun événement</Text>
-                )}
+                    </div>
+                    <div>
+                      {event.type === "home_goal" || event.type === "away_goal"
+                        ? "⚽"
+                        : event.type === "yellow_card"
+                        ? "🟨"
+                        : event.type === "red_card"
+                        ? "🟥"
+                        : "🔄"}
+                    </div>
+                  </div>
+                ))
+            ) : (
+              <div style={{ color: "#64748b", textAlign: "center" }}>
+                Aucun événement enregistré
               </div>
-            </Col>
+            )}
+          </div>
+        </div>
 
-            {/* Temps additionnel */}
-            <Col span={12}>
-              <Title level={5}>Temps additionnel</Title>
+        <div style={styles.additionalTimeContainer}>
+          <h3 style={styles.eventsHeader}>
+            <Clock size={16} />
+            Temps additionnel
+          </h3>
 
-              {match.status === "live" && (
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <Select
-                    value={additionalTimeInput.half}
-                    onChange={(value) =>
-                      setAdditionalTimeInput((prev) => ({
-                        ...prev,
-                        half: value,
-                      }))
-                    }
-                    style={{ width: "100%" }}
-                  >
-                    <Select.Option value={1}>1ère mi-temps</Select.Option>
-                    <Select.Option value={2}>2ème mi-temps</Select.Option>
-                  </Select>
+          {match.status === "live" && (
+            <div style={{ display: "grid", gap: "12px", marginBottom: "16px" }}>
+              <select
+                value={additionalTimeInput.half}
+                onChange={(e) =>
+                  setAdditionalTimeInput((prev) => ({
+                    ...prev,
+                    half: parseInt(e.target.value),
+                  }))
+                }
+                style={styles.eventInput}
+              >
+                <option value={1}>1ère mi-temps</option>
+                <option value={2}>2ème mi-temps</option>
+              </select>
 
-                  <InputNumber
-                    placeholder="Minutes"
-                    value={additionalTimeInput.minutes}
-                    onChange={(value) =>
-                      setAdditionalTimeInput((prev) => ({
-                        ...prev,
-                        minutes: value,
-                      }))
-                    }
-                    min={0}
-                    max={15}
-                    style={{ width: "100%" }}
-                  />
+              <input
+                type="number"
+                placeholder="Minutes"
+                value={additionalTimeInput.minutes}
+                onChange={(e) =>
+                  setAdditionalTimeInput((prev) => ({
+                    ...prev,
+                    minutes: parseInt(e.target.value) || 0,
+                  }))
+                }
+                min="0"
+                max="15"
+                style={styles.eventInput}
+              />
 
-                  <Button
-                    onClick={handleSetAdditionalTime}
-                    loading={loading}
-                    style={{ width: "100%" }}
-                  >
-                    Définir
-                  </Button>
-                </Space>
-              )}
+              <button
+                style={{ ...styles.button, ...styles.buttonSecondary }}
+                onClick={handleSetAdditionalTime}
+                disabled={isLoading}
+              >
+                Définir
+              </button>
+            </div>
+          )}
 
-              <div style={{ marginTop: 16 }}>
-                <Text>1ère MT: +{timerState.additionalTimeFirstHalf}min</Text>
-                <br />
-                <Text>2ème MT: +{timerState.additionalTimeSecondHalf}min</Text>
-              </div>
-            </Col>
-          </Row>
-        </Col>
-      </Row>
-    </Card>
+          <div>
+            <div style={{ marginBottom: "8px" }}>
+              <strong>1ère mi-temps:</strong> +
+              {timerState.additionalTimeFirstHalf} min
+            </div>
+            <div>
+              <strong>2ème mi-temps:</strong> +
+              {timerState.additionalTimeSecondHalf} min
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

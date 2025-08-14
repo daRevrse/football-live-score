@@ -221,6 +221,8 @@ router.delete("/:id", async (req, res) => {
     // Supprimer le match
     await match.destroy();
 
+    req.io.emit("match_deleted", match.id);
+
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting match:", error);

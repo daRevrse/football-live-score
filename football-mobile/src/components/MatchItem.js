@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,13 +23,59 @@ export default function MatchItem({ match, onPress }) {
   const homeScore = match.homeScore ?? match.home_score ?? 0;
   const awayScore = match.awayScore ?? match.away_score ?? 0;
   const status = match.status || "scheduled";
-  const timerState = {
+
+  // État dynamique pour le minuteur
+  const [timerState, setTimerState] = useState({
     currentMinute: match.currentMinute || 0,
     currentSecond: match.currentSecond || 0,
     isRunning: match.status === "live",
     additionalTimeFirstHalf: match.additionalTimeFirstHalf || 0,
     additionalTimeSecondHalf: match.additionalTimeSecondHalf || 0,
-  };
+  });
+
+  // Effet pour mettre à jour le minuteur en temps réel
+  useEffect(() => {
+    let interval;
+    if (status === "live") {
+      interval = setInterval(() => {
+        setTimerState((prev) => {
+          // Logique de mise à jour du minuteur
+          let newSecond = prev.currentSecond + 1;
+          let newMinute = prev.currentMinute;
+
+          if (newSecond >= 60) {
+            newSecond = 0;
+            newMinute++;
+          }
+
+          return {
+            ...prev,
+            currentMinute: newMinute,
+            currentSecond: newSecond,
+          };
+        });
+      }, 1000);
+    }
+
+    return () => clearInterval(interval);
+  }, [status]);
+
+  // Mise à jour de l'état quand les props changent
+  useEffect(() => {
+    setTimerState({
+      currentMinute: match.currentMinute || 0,
+      currentSecond: match.currentSecond || 0,
+      isRunning: match.status === "live",
+      additionalTimeFirstHalf: match.additionalTimeFirstHalf || 0,
+      additionalTimeSecondHalf: match.additionalTimeSecondHalf || 0,
+    });
+  }, [
+    match.currentMinute,
+    match.currentSecond,
+    match.status,
+    match.additionalTimeFirstHalf,
+    match.additionalTimeSecondHalf,
+  ]);
 
   // Fonction pour obtenir les couleurs selon le statut
   const getStatusStyle = () => {
@@ -113,7 +159,9 @@ export default function MatchItem({ match, onPress }) {
       {status === "live" && (
         <View style={styles.liveIndicator}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveText}>{timerState.currentMinute}'</Text>
+          <Text style={styles.liveText}>
+            {timerState.currentMinute}:{timerState.currentSecond}
+          </Text>
         </View>
       )}
 
@@ -217,7 +265,7 @@ const styles = StyleSheet.create({
   liveIndicator: {
     position: "absolute",
     top: 10,
-    right: 165,
+    right: 160,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#ff4d4f",

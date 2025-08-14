@@ -18,7 +18,7 @@ import MatchItem from "./MatchItem";
 import axios from "axios";
 
 const { width, height } = Dimensions.get("window");
-const API_URL = "http://192.168.1.75:5000"; // <--- adapte selon ton backend
+const API_URL = "http://192.168.1.65:5000"; // <--- adapte selon ton backend
 
 export default function MatchesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
@@ -26,6 +26,7 @@ export default function MatchesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [connectionStatus, setConnectionStatus] = useState("connected");
+  const [timers, setTimers] = useState(new Map()); // État local pour les timers
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -33,57 +34,170 @@ export default function MatchesScreen({ navigation }) {
     fetchMatches();
 
     // Gestion de la connexion socket
-    const onConnect = () => setConnectionStatus("connected");
-    const onDisconnect = () => setConnectionStatus("disconnected");
+    const onConnect = () => {
+      console.log("🟢 Socket connecté");
+      setConnectionStatus("connected");
+    };
 
-    // handlers
+    const onDisconnect = () => {
+      console.log("🔴 Socket déconnecté");
+      setConnectionStatus("disconnected");
+    };
+
+    // Handler pour les matches créés
     const onCreated = (newMatch) => {
+      console.log("📝 Nouveau match créé:", newMatch.id);
       setMatches((prev) => {
         if (prev.find((m) => m.id === newMatch.id)) return prev;
         return [newMatch, ...prev];
       });
     };
 
+    // Handler pour les matches mis à jour (scores, statut, etc.)
     const onUpdated = (updatedMatch) => {
+      console.log("🔄 Match mis à jour:", updatedMatch.id);
       setMatches((prev) =>
         prev.map((m) => (m.id === updatedMatch.id ? updatedMatch : m))
       );
     };
 
+    // Handler spécifique pour les mises à jour du timer
+    const onTimerUpdate = (timerData) => {
+      if (!timerData.matchId) return;
+
+      console.log(
+        `⏰ Timer mis à jour pour match ${timerData.matchId}:`,
+        `${timerData.currentMinute}:${String(timerData.currentSecond).padStart(
+          2,
+          "0"
+        )}`
+      );
+
+      // Met à jour l'état des timers
+      setTimers(
+        (prev) =>
+          new Map(
+            prev.set(timerData.matchId, {
+              currentMinute: timerData.currentMinute,
+              currentSecond: timerData.currentSecond,
+              status: timerData.status,
+              lastUpdate: Date.now(),
+            })
+          )
+      );
+
+      // Met à jour aussi le match si nécessaire
+      setMatches((prev) =>
+        prev.map((match) =>
+          match.id === timerData.matchId
+            ? {
+                ...match,
+                currentMinute: timerData.currentMinute,
+                currentSecond: timerData.currentSecond,
+                status: timerData.status,
+              }
+            : match
+        )
+      );
+    };
+
+    // Handler pour les événements de match
     const onEvent = (payload) => {
       if (!payload) return;
-      // payload may contain { match, event }
+
+      console.log("🎯 Événement de match reçu:", payload);
+
+      // payload peut contenir { match, event }
       if (payload.match) {
         onUpdated(payload.match);
-      } else if (payload.event) {
-        // fallback: update single event into the list if we have that match
+      } else if (payload.event && payload.event.matchId) {
+        // Mise à jour spécifique pour l'événement
         setMatches((prev) =>
           prev.map((m) =>
             m.id === payload.event.matchId
-              ? { ...m /* optional: update structure */ }
+              ? {
+                  ...m,
+                  // Mise à jour du score si c'est un but
+                  ...(payload.event.type.includes("goal") && payload.match
+                    ? {
+                        homeScore: payload.match.homeScore,
+                        awayScore: payload.match.awayScore,
+                      }
+                    : {}),
+                }
               : m
           )
         );
       }
     };
 
-    // const handleTimerUpdate = (payload) => {
-    //   if (payload.match.matchId === match.id) {
-    //     setTimerState((prev) => ({
-    //       ...prev,
-    //       currentMinute: payload.match.currentMinute,
-    //       currentSecond: payload.match.currentSecond,
-    //       isRunning: payload.match.status === "live",
-    //     }));
-    //   }
-    // };
+    // Handlers pour les changements d'état de match
+    const onMatchStarted = (data) => {
+      console.log("🟢 Match démarré:", data.matchId);
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === data.matchId
+            ? { ...m, status: "live", kickoffTime: data.startTime }
+            : m
+        )
+      );
+    };
 
+    const onMatchPaused = (data) => {
+      console.log("⏸️ Match en pause:", data.matchId);
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === data.matchId ? { ...m, status: "paused" } : m
+        )
+      );
+    };
+
+    const onMatchResumed = (data) => {
+      console.log("▶️ Match repris:", data.matchId);
+      setMatches((prev) =>
+        prev.map((m) => (m.id === data.matchId ? { ...m, status: "live" } : m))
+      );
+    };
+
+    const onMatchFinished = (data) => {
+      console.log("🏁 Match terminé:", data.matchId);
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === data.matchId ? { ...m, status: "finished" } : m
+        )
+      );
+      // Retire le timer du match terminé
+      setTimers((prev) => {
+        const newTimers = new Map(prev);
+        newTimers.delete(data.matchId);
+        return newTimers;
+      });
+    };
+
+    const onSecondHalfStarted = (data) => {
+      console.log("🔄 Seconde mi-temps démarrée:", data.matchId);
+    };
+
+    const onAdditionalTime = (data) => {
+      console.log(
+        `⏰ Temps additionnel défini pour match ${data.matchId}:`,
+        `${data.minutes}min (${data.half}ème MT)`
+      );
+    };
+
+    // Enregistrement des listeners
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("match_created", onCreated);
     socket.on("match_updated", onUpdated);
     socket.on("match:event", onEvent);
-    socket.on("match:timer", onUpdated);
+    socket.on("match:timer", onTimerUpdate); // Handler spécifique pour le timer
+    socket.on("match:started", onMatchStarted);
+    socket.on("match:paused", onMatchPaused);
+    socket.on("match:resumed", onMatchResumed);
+    socket.on("match:finished", onMatchFinished);
+    socket.on("match:second_half_started", onSecondHalfStarted);
+    socket.on("match:additional_time", onAdditionalTime);
 
     return () => {
       mountedRef.current = false;
@@ -92,7 +206,13 @@ export default function MatchesScreen({ navigation }) {
       socket.off("match_created", onCreated);
       socket.off("match_updated", onUpdated);
       socket.off("match:event", onEvent);
-      socket.off("match:timer", onUpdated);
+      socket.off("match:timer", onTimerUpdate);
+      socket.off("match:started", onMatchStarted);
+      socket.off("match:paused", onMatchPaused);
+      socket.off("match:resumed", onMatchResumed);
+      socket.off("match:finished", onMatchFinished);
+      socket.off("match:second_half_started", onSecondHalfStarted);
+      socket.off("match:additional_time", onAdditionalTime);
     };
   }, []);
 
@@ -101,7 +221,27 @@ export default function MatchesScreen({ navigation }) {
       setLoading(true);
       const res = await axios.get(`${API_URL}/matches`);
       if (!mountedRef.current) return;
-      setMatches(res.data || []);
+
+      const matchesData = res.data || [];
+      setMatches(matchesData);
+
+      // Initialise les timers pour les matches en cours
+      const newTimers = new Map();
+      matchesData.forEach((match) => {
+        if (match.status === "live" || match.status === "paused") {
+          newTimers.set(match.id, {
+            currentMinute: match.currentMinute || 0,
+            currentSecond: match.currentSecond || 0,
+            status: match.status,
+            lastUpdate: Date.now(),
+          });
+        }
+      });
+      setTimers(newTimers);
+
+      console.log(
+        `📊 ${matchesData.length} matches chargés, ${newTimers.size} timers actifs`
+      );
     } catch (err) {
       console.warn("fetchMatches error", err.message || err);
       setConnectionStatus("error");
@@ -116,27 +256,53 @@ export default function MatchesScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  // Fonction pour enrichir un match avec les données du timer
+  const enrichMatchWithTimer = (match) => {
+    const timerData = timers.get(match.id);
+    if (!timerData) return match;
+
+    return {
+      ...match,
+      currentMinute: timerData.currentMinute,
+      currentSecond: timerData.currentSecond,
+      status: timerData.status,
+      timerLastUpdate: timerData.lastUpdate,
+    };
+  };
+
   // Filtrage des matches
   const getFilteredMatches = () => {
+    let filtered;
     switch (selectedFilter) {
       case "live":
-        return matches.filter((match) => match.status === "live");
+        filtered = matches.filter(
+          (match) => match.status === "live" || match.status === "paused"
+        );
+        break;
       case "today":
         const today = new Date().toDateString();
-        return matches.filter(
+        filtered = matches.filter(
           (match) => new Date(match.startAt).toDateString() === today
         );
+        break;
       case "finished":
-        return matches.filter((match) => match.status === "finished");
+        filtered = matches.filter((match) => match.status === "finished");
+        break;
       case "scheduled":
-        return matches.filter((match) => match.status === "scheduled");
+        filtered = matches.filter((match) => match.status === "scheduled");
+        break;
       default:
-        return matches;
+        filtered = matches;
     }
+
+    // Enrichit chaque match avec les données du timer
+    return filtered.map(enrichMatchWithTimer);
   };
 
   const filteredMatches = getFilteredMatches();
-  const liveCount = matches.filter((m) => m.status === "live").length;
+  const liveCount = matches.filter(
+    (m) => m.status === "live" || m.status === "paused"
+  ).length;
   const todayCount = matches.filter(
     (m) => new Date(m.startAt).toDateString() === new Date().toDateString()
   ).length;
@@ -152,7 +318,7 @@ export default function MatchesScreen({ navigation }) {
       ]}
     >
       <MatchItem
-        match={item}
+        match={item} // Le match est déjà enrichi avec les données du timer
         onPress={(match) =>
           navigation?.navigate?.("MatchDetail", { id: match.id })
         }
@@ -199,7 +365,7 @@ export default function MatchesScreen({ navigation }) {
         <Text style={styles.statusText}>
           {connectionStatus === "error"
             ? "⚠️ Erreur de connexion"
-            : "📡 Connexion perdue"}
+            : "📡 Reconnexion en cours..."}
         </Text>
       </View>
     );
@@ -219,6 +385,10 @@ export default function MatchesScreen({ navigation }) {
               <Text style={styles.headerTitle}>Matches</Text>
               <Text style={styles.headerSubtitle}>
                 {matches.length} match{matches.length > 1 ? "es" : ""} au total
+                {timers.size > 0 &&
+                  ` • ${timers.size} timer${timers.size > 1 ? "s" : ""} actif${
+                    timers.size > 1 ? "s" : ""
+                  }`}
               </Text>
             </View>
 
@@ -261,7 +431,7 @@ export default function MatchesScreen({ navigation }) {
           return {
             icon: "📺",
             title: "Aucun match en direct",
-            subtitle: "Les matches en cours apparaîtront ici",
+            subtitle: "Les matches en cours apparaîtront ici en temps réel",
           };
         case "today":
           return {
@@ -312,6 +482,11 @@ export default function MatchesScreen({ navigation }) {
         <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color="#1890ff" />
           <Text style={styles.loadingText}>Chargement des matches...</Text>
+          {connectionStatus === "connected" && (
+            <Text style={styles.loadingSubtext}>
+              🟢 Connexion temps réel active
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -365,6 +540,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: "#666",
+    textAlign: "center",
+  },
+  loadingSubtext: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#999",
     textAlign: "center",
   },
   header: {
