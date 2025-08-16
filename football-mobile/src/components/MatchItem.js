@@ -2,14 +2,23 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  StyleSheet,
+  Animated,
+  Image,
 } from "react-native";
+import {
+  Clock,
+  MapPin,
+  Flame,
+  Calendar,
+  CircleCheck,
+} from "lucide-react-native";
 
-const { width } = Dimensions.get("window");
+const API_URL = "http://192.168.1.65:5000";
 
-export default function MatchItem({ match, onPress }) {
+const MatchItem = ({ match, onPress, index = 0 }) => {
+  // Extraction des données avec fallbacks
   const home = match.homeTeam?.name ?? match.home_team ?? "Home";
   const away = match.awayTeam?.name ?? match.away_team ?? "Away";
   const homeShort =
@@ -23,86 +32,70 @@ export default function MatchItem({ match, onPress }) {
   const homeScore = match.homeScore ?? match.home_score ?? 0;
   const awayScore = match.awayScore ?? match.away_score ?? 0;
   const status = match.status || "scheduled";
+  const homeLogo = match.homeTeam?.logo ?? match.home_team_logo;
+  const awayLogo = match.awayTeam?.logo ?? match.away_team_logo;
 
-  // État dynamique pour le minuteur
-  const [timerState, setTimerState] = useState({
-    currentMinute: match.currentMinute || 0,
-    currentSecond: match.currentSecond || 0,
-    isRunning: match.status === "live",
-    additionalTimeFirstHalf: match.additionalTimeFirstHalf || 0,
-    additionalTimeSecondHalf: match.additionalTimeSecondHalf || 0,
-  });
+  // Animation
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const translateYAnim = useState(new Animated.Value(30))[0];
 
-  // Effet pour mettre à jour le minuteur en temps réel
   useEffect(() => {
-    let interval;
-    if (status === "live") {
-      interval = setInterval(() => {
-        setTimerState((prev) => {
-          // Logique de mise à jour du minuteur
-          let newSecond = prev.currentSecond + 1;
-          let newMinute = prev.currentMinute;
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        delay: index * 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateYAnim, {
+        toValue: 0,
+        duration: 300,
+        delay: index * 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-          if (newSecond >= 60) {
-            newSecond = 0;
-            newMinute++;
-          }
-
-          return {
-            ...prev,
-            currentMinute: newMinute,
-            currentSecond: newSecond,
-          };
-        });
-      }, 1000);
-    }
-
-    return () => clearInterval(interval);
-  }, [status]);
-
-  // Mise à jour de l'état quand les props changent
-  useEffect(() => {
-    setTimerState({
-      currentMinute: match.currentMinute || 0,
-      currentSecond: match.currentSecond || 0,
-      isRunning: match.status === "live",
-      additionalTimeFirstHalf: match.additionalTimeFirstHalf || 0,
-      additionalTimeSecondHalf: match.additionalTimeSecondHalf || 0,
-    });
-  }, [
-    match.currentMinute,
-    match.currentSecond,
-    match.status,
-    match.additionalTimeFirstHalf,
-    match.additionalTimeSecondHalf,
-  ]);
-
-  // Fonction pour obtenir les couleurs selon le statut
-  const getStatusStyle = () => {
+  // Styles dynamiques
+  const getStatusConfig = () => {
     switch (status) {
       case "live":
-        return { backgroundColor: "#ff4d4f", color: "#fff" };
+        return {
+          backgroundColor: "#fef2f2",
+          borderColor: "#dc2626",
+          textColor: "#dc2626",
+          icon: <Flame width={14} height={14} color="#dc2626" />,
+          text: "EN DIRECT",
+        };
       case "finished":
-        return { backgroundColor: "#52c41a", color: "#fff" };
+        return {
+          backgroundColor: "#f0fdf4",
+          borderColor: "#16a34a",
+          textColor: "#16a34a",
+          icon: <CircleCheck width={14} height={14} color="#16a34a" />,
+          text: "TERMINÉ",
+        };
       case "scheduled":
-        return { backgroundColor: "#1890ff", color: "#fff" };
+        return {
+          backgroundColor: "#eff6ff",
+          borderColor: "#2563eb",
+          textColor: "#2563eb",
+          icon: <Clock width={14} height={14} color="#2563eb" />,
+          text: "À VENIR",
+        };
       default:
-        return { backgroundColor: "#d9d9d9", color: "#666" };
+        return {
+          backgroundColor: "#f3f4f6",
+          borderColor: "#6b7280",
+          textColor: "#6b7280",
+          icon: <Calendar width={14} height={14} color="#6b7280" />,
+          text: status.toUpperCase(),
+        };
     }
   };
 
-  // Fonction pour obtenir le style de la carte selon le statut
-  const getCardStyle = () => {
-    const baseStyle = styles.card;
-    switch (status) {
-      case "live":
-        return [baseStyle, styles.liveCard];
-      case "finished":
-        return [baseStyle, styles.finishedCard];
-      default:
-        return baseStyle;
-    }
-  };
+  const statusConfig = getStatusConfig();
+  const isLive = status === "live";
 
   // Formatage de la date
   const formatDate = (dateString) => {
@@ -116,295 +109,271 @@ export default function MatchItem({ match, onPress }) {
     const isTomorrow = date.toDateString() === tomorrow.toDateString();
 
     if (isToday) {
-      return `Aujourd'hui ${date.toLocaleTimeString("fr-FR", {
+      return `Aujourd'hui à ${date.toLocaleTimeString("fr-FR", {
         hour: "2-digit",
         minute: "2-digit",
       })}`;
     } else if (isTomorrow) {
-      return `Demain ${date.toLocaleTimeString("fr-FR", {
+      return `Demain à ${date.toLocaleTimeString("fr-FR", {
         hour: "2-digit",
         minute: "2-digit",
       })}`;
     } else {
       return date.toLocaleDateString("fr-FR", {
         day: "2-digit",
-        month: "2-digit",
+        month: "short",
         hour: "2-digit",
         minute: "2-digit",
       });
     }
   };
 
-  // Fonction pour obtenir le texte du statut
-  const getStatusText = () => {
-    switch (status) {
-      case "live":
-        return "EN DIRECT";
-      case "finished":
-        return "TERMINÉ";
-      case "scheduled":
-        return "À VENIR";
-      default:
-        return status.toUpperCase();
-    }
-  };
-
   return (
-    <TouchableOpacity
-      onPress={() => onPress && onPress(match)}
-      style={getCardStyle()}
-      activeOpacity={0.8}
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: translateYAnim }],
+          borderColor: isLive ? "#dc2626" : "#e2e8f0",
+        },
+      ]}
     >
-      {/* Indicateur live */}
-      {status === "live" && (
-        <View style={styles.liveIndicator}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>
-            {timerState.currentMinute}:{timerState.currentSecond}
-          </Text>
-        </View>
-      )}
-
-      {/* En-tête avec équipes */}
-      <View style={styles.mainRow}>
-        {/* Équipe domicile */}
-        <View style={styles.teamContainer}>
-          <View style={styles.teamBadge}>
-            <Text style={styles.teamShort}>{homeShort}</Text>
-          </View>
-          <Text style={styles.teamName} numberOfLines={1}>
-            {home}
-          </Text>
-        </View>
-
-        {/* Score central */}
-        <View style={styles.scoreContainer}>
-          {status === "finished" || status === "live" ? (
-            <View style={styles.scoreDisplay}>
-              <Text style={styles.score}>{homeScore}</Text>
-              <Text style={styles.scoreSeparator}>—</Text>
-              <Text style={styles.score}>{awayScore}</Text>
-            </View>
-          ) : (
-            <View style={styles.vsContainer}>
-              <Text style={styles.vs}>VS</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Équipe extérieur */}
-        <View style={[styles.teamContainer, styles.awayTeam]}>
-          <Text
-            style={[styles.teamName, styles.awayTeamName]}
-            numberOfLines={1}
+      <TouchableOpacity onPress={() => onPress && onPress(match)}>
+        {/* En-tête */}
+        <View style={styles.header}>
+          <Text style={styles.dateText}>{formatDate(match.startAt)}</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: statusConfig.backgroundColor,
+                borderColor: statusConfig.borderColor,
+              },
+            ]}
           >
-            {away}
-          </Text>
-          <View style={styles.teamBadge}>
-            <Text style={styles.teamShort}>{awayShort}</Text>
+            {statusConfig.icon}
+            <Text
+              style={[styles.statusText, { color: statusConfig.textColor }]}
+            >
+              {statusConfig.text}
+            </Text>
           </View>
         </View>
-      </View>
 
-      {/* Informations supplémentaires */}
-      <View style={styles.metaRow}>
-        <View style={[styles.statusBadge, getStatusStyle()]}>
-          <Text style={[styles.statusText, { color: getStatusStyle().color }]}>
-            {getStatusText()}
-          </Text>
-        </View>
-
-        {match.startAt && (
-          <Text style={styles.startAt}>{formatDate(match.startAt)}</Text>
-        )}
-      </View>
-
-      {/* Événements récents (si disponibles) */}
-      {match.events && match.events.length > 0 && (
-        <View style={styles.eventsContainer}>
-          <Text style={styles.eventsTitle}>Derniers événements:</Text>
-          {match.events.slice(-2).map((event, index) => (
-            <Text key={index} style={styles.eventItem}>
-              {event.minute}'{" "}
-              {event.type === "goal"
-                ? "⚽"
-                : event.type.includes("card")
-                ? "🟨"
-                : ""}{" "}
-              {event.player}
+        {/* Contenu principal */}
+        <View style={styles.mainContent}>
+          {/* Équipe domicile */}
+          <View style={styles.teamSection}>
+            <View style={styles.teamBadge}>
+              {match.homeTeam?.logoUrl ? (
+                <Image
+                  source={{
+                    uri: match.homeTeam.logoUrl.replace(
+                      "http://localhost:5000",
+                      API_URL
+                    ),
+                  }}
+                  style={styles.teamLogo}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={styles.teamShort}>{homeShort}</Text>
+              )}
+            </View>
+            <Text style={styles.teamName} numberOfLines={2}>
+              {home}
             </Text>
-          ))}
+          </View>
+
+          {/* Section centrale (Score ou VS) */}
+          <View style={styles.centerSection}>
+            {status === "finished" || status === "live" ? (
+              <View style={styles.scoreDisplay}>
+                <Text style={styles.score}>{homeScore}</Text>
+                <Text style={styles.scoreSeparator}>-</Text>
+                <Text style={styles.score}>{awayScore}</Text>
+              </View>
+            ) : (
+              <View style={styles.vsContainer}>
+                <Text style={styles.vsText}>VS</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Équipe extérieure */}
+          <View style={styles.teamSection}>
+            <View style={styles.teamBadge}>
+              {match.awayTeam?.logoUrl ? (
+                <Image
+                  source={{
+                    uri: match.awayTeam.logoUrl.replace(
+                      "http://localhost:5000",
+                      API_URL
+                    ),
+                  }}
+                  style={styles.teamLogo}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={styles.teamShort}>{awayShort}</Text>
+              )}
+            </View>
+            <Text style={styles.teamName} numberOfLines={2}>
+              {away}
+            </Text>
+          </View>
         </View>
-      )}
-    </TouchableOpacity>
+
+        {/* Localisation */}
+        {match.location && (
+          <View style={styles.locationSection}>
+            <MapPin width={14} height={14} color="#64748b" />
+            <Text style={styles.locationText}>{match.location}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
-    marginVertical: 8,
-    marginHorizontal: 16,
+    backgroundColor: "white",
     borderRadius: 16,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    margin: 12,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#f0f0f0",
-  },
-  liveCard: {
-    borderColor: "#ff4d4f",
     borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  finishedCard: {
-    opacity: 0.9,
-  },
-  liveIndicator: {
-    position: "absolute",
-    top: 10,
-    right: 160,
+  header: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ff4d4f",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#fff",
-    marginRight: 4,
-  },
-  liveText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  mainRow: {
-    flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#f8fafc",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
-  teamContainer: {
+  dateText: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  mainContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 24,
+  },
+  teamSection: {
     flex: 1,
     alignItems: "center",
-    maxWidth: width * 0.3,
+    maxWidth: "35%",
   },
-  awayTeam: {
-    alignItems: "center",
+  teamLogo: {
+    width: "100%",
+    height: "100%",
+    // borderRadius: 28, // Même valeur que teamBadge pour un cercle parfait
   },
   teamBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#f5f5f5",
-    justifyContent: "center",
+    width: 56,
+    height: 56,
+    // borderRadius: 28,
+    // backgroundColor: "#f1f5f9",
     alignItems: "center",
-    marginBottom: 8,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    justifyContent: "center",
+    marginBottom: 12,
+    // borderWidth: 2,
+    // borderColor: "#e2e8f0",
+    // overflow: "hidden", // Important pour que l'image respecte le border radius
   },
   teamShort: {
     fontSize: 14,
-    fontWeight: "bold",
-    color: "#1890ff",
+    fontWeight: "900",
+    color: "#3b82f6",
+    letterSpacing: 0.5,
   },
   teamName: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: "700",
+    color: "#1e293b",
     textAlign: "center",
+    lineHeight: 18,
   },
-  awayTeamName: {
-    textAlign: "center",
-  },
-  scoreContainer: {
-    flex: 1,
+  centerSection: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    minWidth: "30%",
   },
   scoreDisplay: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
   score: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    minWidth: 30,
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#1e293b",
+    minWidth: 40,
     textAlign: "center",
   },
   scoreSeparator: {
-    fontSize: 20,
-    color: "#999",
-    marginHorizontal: 12,
+    fontSize: 24,
+    color: "#cbd5e1",
+    marginHorizontal: 16,
+    fontWeight: "300",
   },
   vsContainer: {
-    backgroundColor: "#e8f4fd",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  vs: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1890ff",
-  },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: "#eff6ff",
+    padding: 12,
     borderRadius: 16,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
   },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "bold",
-    letterSpacing: 0.5,
+  vsText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#2563eb",
+    letterSpacing: 2,
   },
-  startAt: {
+  locationSection: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+    backgroundColor: "#fefefe",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  locationText: {
     fontSize: 12,
-    color: "#666",
+    color: "#64748b",
     fontWeight: "500",
   },
-  eventsContainer: {
-    backgroundColor: "#fafafa",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  eventsTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#666",
-    marginBottom: 4,
-  },
-  eventItem: {
-    fontSize: 11,
-    color: "#999",
-    marginBottom: 2,
-  },
 });
+
+export default MatchItem;

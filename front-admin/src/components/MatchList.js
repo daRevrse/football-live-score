@@ -15,6 +15,7 @@ import {
   AlertCircle,
   X,
 } from "lucide-react";
+import MatchCard from "./MatchCard";
 
 export default function MatchList() {
   const [matches, setMatches] = useState([]);
@@ -219,6 +220,12 @@ export default function MatchList() {
       alignItems: "center",
       gap: "8px",
     },
+    matchInfoScoreRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      justifyContent: "space-evenly",
+    },
     matchScore: {
       fontSize: "20px",
       fontWeight: "bold",
@@ -307,6 +314,33 @@ export default function MatchList() {
     modalCloseButtonHover: {
       backgroundColor: "#f3f4f6",
       color: "#374151",
+    },
+    teamsContainer: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      flex: 1,
+    },
+    teamWithLogo: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    teamLogo: {
+      width: "24px",
+      height: "24px",
+      objectFit: "contain",
+    },
+    hiddenTeamName: {
+      display: "none",
+    },
+    teamName: {
+      fontSize: "14px",
+    },
+    vsSeparator: {
+      color: "#64748b",
+      fontSize: "12px",
+      padding: "0 4px",
     },
   };
 
@@ -440,63 +474,70 @@ export default function MatchList() {
       ) : (
         <div style={styles.grid}>
           {filteredMatches.map((match) => (
-            <div
+            // <div
+            //   key={match.id}
+            //   style={styles.matchCard}
+            //   onMouseEnter={(e) =>
+            //     Object.assign(e.currentTarget.style, styles.matchCardHover)
+            //   }
+            //   onMouseLeave={(e) => {
+            //     e.currentTarget.style.transform = "none";
+            //     e.currentTarget.style.boxShadow =
+            //       "0 4px 12px rgba(0, 0, 0, 0.05)";
+            //   }}
+            // >
+            //   <div style={styles.matchHeader}>
+            //     <h3 style={styles.matchTitle}>
+            //       {match.homeTeam.name} vs {match.awayTeam.name}
+            //     </h3>
+            //     <span
+            //       style={{
+            //         ...styles.matchStatus,
+            //         ...getStatusColor(match.status),
+            //       }}
+            //     >
+            //       {match.status}
+            //     </span>
+            //   </div>
+            //   <div style={styles.matchBody}>
+            //     <div style={styles.matchInfo}>
+            //       <div style={styles.matchScore}>
+            //         {match.homeScore} - {match.awayScore}
+            //       </div>
+            //       <div style={styles.matchInfoRow}>
+            //         <Clock size={16} />
+            //         <span>{new Date(match.startAt).toLocaleString()}</span>
+            //       </div>
+            //       <div style={styles.matchInfoRow}>
+            //         <Flag size={16} />
+            //         <span>{match.location || "Lieu non spécifié"}</span>
+            //       </div>
+            //     </div>
+            //   </div>
+            //   <div style={styles.matchActions}>
+            //     <button
+            //       style={{ ...styles.actionButton, ...styles.editButton }}
+            //       onClick={() => setSelectedMatchId(match.id)}
+            //     >
+            //       <Edit size={14} />
+            //       Éditer
+            //     </button>
+            //     <button
+            //       style={{ ...styles.actionButton, ...styles.deleteButton }}
+            //       onClick={() => handleDeleteMatch(match.id)}
+            //     >
+            //       <Trash2 size={14} />
+            //       Supprimer
+            //     </button>
+            //   </div>
+            // </div>
+            <MatchCard
               key={match.id}
-              style={styles.matchCard}
-              onMouseEnter={(e) =>
-                Object.assign(e.currentTarget.style, styles.matchCardHover)
-              }
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "none";
-                e.currentTarget.style.boxShadow =
-                  "0 4px 12px rgba(0, 0, 0, 0.05)";
-              }}
-            >
-              <div style={styles.matchHeader}>
-                <h3 style={styles.matchTitle}>
-                  {match.homeTeam.name} vs {match.awayTeam.name}
-                </h3>
-                <span
-                  style={{
-                    ...styles.matchStatus,
-                    ...getStatusColor(match.status),
-                  }}
-                >
-                  {match.status}
-                </span>
-              </div>
-              <div style={styles.matchBody}>
-                <div style={styles.matchInfo}>
-                  <div style={styles.matchScore}>
-                    {match.homeScore} - {match.awayScore}
-                  </div>
-                  <div style={styles.matchInfoRow}>
-                    <Clock size={16} />
-                    <span>{new Date(match.startAt).toLocaleString()}</span>
-                  </div>
-                  <div style={styles.matchInfoRow}>
-                    <Flag size={16} />
-                    <span>{match.location || "Lieu non spécifié"}</span>
-                  </div>
-                </div>
-              </div>
-              <div style={styles.matchActions}>
-                <button
-                  style={{ ...styles.actionButton, ...styles.editButton }}
-                  onClick={() => setSelectedMatchId(match.id)}
-                >
-                  <Edit size={14} />
-                  Éditer
-                </button>
-                <button
-                  style={{ ...styles.actionButton, ...styles.deleteButton }}
-                  onClick={() => handleDeleteMatch(match.id)}
-                >
-                  <Trash2 size={14} />
-                  Supprimer
-                </button>
-              </div>
-            </div>
+              match={match}
+              onEdit={setSelectedMatchId}
+              onDelete={handleDeleteMatch}
+              styles={styles}
+            />
           ))}
         </div>
       )}

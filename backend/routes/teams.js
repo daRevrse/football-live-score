@@ -95,6 +95,8 @@ router.post("/", async (req, res) => {
   try {
     const { name, shortName, logoUrl, primaryColor, secondaryColor } = req.body;
 
+    console.log("logoUrl", logoUrl);
+
     // Validation des données
     const validationErrors = validateTeamData(req.body);
     if (validationErrors.length > 0) {
@@ -126,7 +128,7 @@ router.post("/", async (req, res) => {
     const team = await db.Team.create({
       name: name.trim(),
       shortName: shortName.trim().toUpperCase(),
-      logoUrl: logoUrl?.trim() || null,
+      logoUrl: logoUrl || null,
       primaryColor: primaryColor?.trim() || null,
       secondaryColor: secondaryColor?.trim() || null,
     });

@@ -1,6 +1,15 @@
 import React, { useState } from "react";
-import { createTeam } from "../services/api";
-import { AlertCircle, Check, Loader2, Camera, Palette } from "lucide-react";
+import { createTeam, uploadLogo, deleteLogo, API_URL } from "../services/api";
+import {
+  AlertCircle,
+  Check,
+  Loader2,
+  Camera,
+  Palette,
+  Upload,
+  X,
+  Image,
+} from "lucide-react";
 
 export default function TeamForm({ onTeamCreated, onCancel }) {
   const [formData, setFormData] = useState({
@@ -12,9 +21,13 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
+  const [urlLogo, setUrlLogo] = useState("");
 
   // Styles CSS intégrés
   const styles = {
@@ -22,8 +35,6 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
       maxWidth: "800px",
       margin: "0 auto",
       backgroundColor: "white",
-      // borderRadius: "12px",
-      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
       border: "1px solid #e5e7eb",
       overflow: "hidden",
     },
@@ -237,6 +248,73 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
       transform: "translateY(-1px)",
       boxShadow: "0 6px 16px rgba(59, 130, 246, 0.4)",
     },
+    uploadZone: {
+      border: "2px dashed #d1d5db",
+      borderRadius: "8px",
+      padding: "24px",
+      textAlign: "center",
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+      backgroundColor: "#fafafa",
+    },
+    uploadZoneActive: {
+      borderColor: "#3b82f6",
+      backgroundColor: "#eff6ff",
+    },
+    uploadZoneError: {
+      borderColor: "#f87171",
+      backgroundColor: "#fef2f2",
+    },
+    uploadIcon: {
+      width: "48px",
+      height: "48px",
+      margin: "0 auto 12px",
+      color: "#6b7280",
+    },
+    uploadText: {
+      fontSize: "16px",
+      fontWeight: "500",
+      color: "#374151",
+      marginBottom: "4px",
+    },
+    uploadSubtext: {
+      fontSize: "14px",
+      color: "#6b7280",
+    },
+    logoContainer: {
+      position: "relative",
+      display: "inline-block",
+    },
+    logoDelete: {
+      position: "absolute",
+      top: "-8px",
+      right: "-8px",
+      backgroundColor: "#ef4444",
+      color: "white",
+      border: "none",
+      borderRadius: "50%",
+      width: "24px",
+      height: "24px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "12px",
+    },
+    progressBar: {
+      width: "100%",
+      height: "4px",
+      backgroundColor: "#e5e7eb",
+      borderRadius: "2px",
+      overflow: "hidden",
+      marginTop: "8px",
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: "#3b82f6",
+      borderRadius: "2px",
+      transition: "width 0.3s ease",
+    },
     buttonDisabled: {
       backgroundColor: "#d1d5db",
       color: "#9ca3af",
@@ -244,6 +322,117 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
       transform: "none",
       boxShadow: "none",
     },
+  };
+
+  // Gestion de l'upload de fichier
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+
+    // Validation du fichier
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setError("Type de fichier non autorisé. Utilisez JPG, PNG, GIF ou WebP.");
+      return;
+    }
+
+    if (file.size > maxSize) {
+      setError("Fichier trop volumineux. Taille maximum: 5MB.");
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+    setUploadProgress(0);
+
+    try {
+      // Simulation de progression (vous pouvez utiliser XMLHttpRequest pour un vrai suivi)
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 20;
+        });
+      }, 5000);
+
+      const response = await uploadLogo(file);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      // Mettre à jour l'URL du logo
+      setUrlLogo(`${API_URL}${response.logoUrl}`);
+      // handleInputChange("logoUrl", `${API_URL}${response.logoUrl}`);
+      setFormData((prev) => ({
+        ...prev,
+        logoUrl: `${API_URL}${response.logoUrl}`,
+      }));
+
+      setTimeout(() => {
+        setUploadProgress(0);
+        setIsUploading(false);
+      }, 500);
+    } catch (error) {
+      setUploadProgress(0);
+      setIsUploading(false);
+      setError(error.message || "Erreur lors de l'upload");
+    }
+  };
+
+  // Gestion du drag & drop
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileUpload(files[0]);
+    }
+  };
+
+  // Suppression du logo
+  const handleDeleteLogo = async () => {
+    if (!formData.logoUrl) return;
+
+    try {
+      if (formData.logoUrl.startsWith("/uploads/")) {
+        // C'est un fichier uploadé, le supprimer du serveur
+        await deleteLogo(formData.logoUrl);
+      }
+
+      handleInputChange("logoUrl", "");
+    } catch (error) {
+      console.error("Erreur suppression logo:", error);
+      // On supprime quand même l'URL du formulaire
+      handleInputChange("logoUrl", "");
+    }
   };
 
   // Validation en temps réel
@@ -289,7 +478,7 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
   };
 
   const handleInputChange = (name, value) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value, logoUrl: urlLogo }));
 
     // Validation en temps réel
     const fieldErrors = validateField(name, value);
@@ -326,14 +515,19 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
     setIsLoading(true);
     setError(null);
 
+    console.log("urlLogo", urlLogo);
+    console.log("formdata", formData.logoUrl);
+
     try {
       const teamData = {
         name: formData.name.trim(),
         shortName: formData.shortName.trim().toUpperCase(),
-        logoUrl: formData.logoUrl.trim() || null,
+        logoUrl: urlLogo || formData.logoUrl,
         primaryColor: formData.primaryColor || null,
         secondaryColor: formData.secondaryColor || null,
       };
+
+      console.log("teamData", teamData);
 
       const response = await createTeam(teamData);
 
@@ -493,49 +687,134 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
           </div>
         </div>
 
-        {/* Logo */}
+        {/* Logo avec upload */}
         <div style={styles.fieldGroup}>
-          <label htmlFor="logoUrl" style={styles.label}>
+          <label style={styles.label}>
             <Camera size={16} />
-            URL du logo (optionnel)
+            Logo de l'équipe
           </label>
-          <input
-            id="logoUrl"
-            type="url"
-            value={formData.logoUrl}
-            onChange={(e) => handleInputChange("logoUrl", e.target.value)}
-            disabled={isLoading}
-            placeholder="https://exemple.com/logo.png"
-            style={{
-              ...styles.input,
-              ...(validationErrors.logoUrl ? styles.inputError : {}),
-              ...(isLoading ? styles.inputDisabled : {}),
-            }}
-            onFocus={(e) => Object.assign(e.target.style, styles.inputFocus)}
-            onBlur={(e) => {
-              e.target.style.borderColor = validationErrors.logoUrl
-                ? "#f87171"
-                : "#d1d5db";
-              e.target.style.boxShadow = "none";
-            }}
-          />
-          {validationErrors.logoUrl && (
-            <div style={styles.errorText}>
-              <AlertCircle size={16} />
-              {validationErrors.logoUrl}
-            </div>
-          )}
-          {formData.logoUrl && !validationErrors.logoUrl && (
-            <div style={styles.logoPreview}>
+
+          {!formData.logoUrl && !urlLogo ? (
+            <>
+              {/* Zone d'upload */}
+              <div
+                style={{
+                  ...styles.uploadZone,
+                  ...(dragActive ? styles.uploadZoneActive : {}),
+                  ...(validationErrors.logoUrl ? styles.uploadZoneError : {}),
+                }}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById("logoFileInput").click()}
+              >
+                {isUploading ? (
+                  <div>
+                    <Loader2
+                      size={48}
+                      style={{
+                        ...styles.uploadIcon,
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                    <div style={styles.uploadText}>Upload en cours...</div>
+                    <div style={styles.progressBar}>
+                      <div
+                        style={{
+                          ...styles.progressFill,
+                          width: `${uploadProgress}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload size={48} style={styles.uploadIcon} />
+                    <div style={styles.uploadText}>
+                      Cliquez ou glissez-déposez votre logo
+                    </div>
+                    <div style={styles.uploadSubtext}>
+                      JPG, PNG, GIF ou WebP • Max 5MB
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <input
+                id="logoFileInput"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    handleFileUpload(e.target.files[0]);
+                  }
+                }}
+                style={{ display: "none" }}
+              />
+
+              {/* Option URL manuelle */}
+              <div style={{ marginTop: "16px" }}>
+                <label
+                  style={{
+                    ...styles.helpText,
+                    fontWeight: "500",
+                    marginBottom: "8px",
+                    display: "block",
+                  }}
+                >
+                  Ou entrez une URL d'image :
+                </label>
+                <input
+                  type="url"
+                  value={formData.logoUrl}
+                  onChange={(e) => handleInputChange("logoUrl", e.target.value)}
+                  disabled={isLoading}
+                  placeholder="https://exemple.com/logo.png"
+                  style={{
+                    ...styles.input,
+                    ...(validationErrors.logoUrl ? styles.inputError : {}),
+                    ...(isLoading ? styles.inputDisabled : {}),
+                  }}
+                  onFocus={(e) =>
+                    Object.assign(e.target.style, styles.inputFocus)
+                  }
+                  onBlur={(e) => {
+                    e.target.style.borderColor = validationErrors.logoUrl
+                      ? "#f87171"
+                      : "#d1d5db";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            /* Aperçu du logo */
+            <div style={styles.logoContainer}>
               <img
-                src={formData.logoUrl}
-                alt="Aperçu du logo"
+                src={urlLogo}
+                alt="Logo de l'équipe"
                 style={styles.logoImage}
                 onError={(e) => {
                   e.target.style.display = "none";
                   handleInputChange("logoUrl", "");
                 }}
               />
+              <button
+                type="button"
+                onClick={handleDeleteLogo}
+                style={styles.logoDelete}
+                title="Supprimer le logo"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
+          {validationErrors.logoUrl && (
+            <div style={styles.errorText}>
+              <AlertCircle size={16} />
+              {validationErrors.logoUrl}
             </div>
           )}
         </div>

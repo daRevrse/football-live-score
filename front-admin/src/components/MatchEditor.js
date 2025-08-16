@@ -476,10 +476,10 @@ export default function MatchEditor({
   };
 
   const addEvent = async () => {
-    if (!eventMinute || isNaN(eventMinute)) {
-      message.warning("Veuillez entrer une minute valide");
-      return;
-    }
+    // if (!eventMinute || isNaN(eventMinute)) {
+    //   message.warning("Veuillez entrer une minute valide");
+    //   return;
+    // }
 
     if (!eventPlayer.trim()) {
       message.warning("Veuillez entrer le nom du joueur");
@@ -494,7 +494,7 @@ export default function MatchEditor({
           ? match.homeTeam.id
           : match.awayTeam.id,
         player: eventPlayer,
-        minute: parseInt(eventMinute),
+        minute: parseInt(eventMinute ? eventMinute : timerState.currentMinute),
       };
 
       await addMatchEvent(match.id, eventData);

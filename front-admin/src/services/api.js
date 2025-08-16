@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000";
+export const API_URL = "http://localhost:5000";
 
 // Configuration axios
 const api = axios.create({
@@ -244,5 +244,68 @@ export const getLiveMatches = async () => {
     throw new Error(
       `Erreur lors de la récupération des matches en direct: ${error.message}`
     );
+  }
+};
+
+// Upload d'un logo
+export const uploadLogo = async (file) => {
+  const formData = new FormData();
+  formData.append("logo", file);
+
+  try {
+    const response = await fetch(`${API_URL}/upload/logo`, {
+      method: "POST",
+      body: formData,
+      // Ne pas définir Content-Type, le navigateur le fera automatiquement avec boundary
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Erreur lors de l'upload");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Erreur upload logo:", error);
+    throw error;
+  }
+};
+
+// Supprimer un logo
+export const deleteLogo = async (logoUrl) => {
+  try {
+    const response = await fetch(`${API_URL}/upload/logo`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ logoUrl }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Erreur lors de la suppression");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Erreur suppression logo:", error);
+    throw error;
+  }
+};
+
+// Lister les logos disponibles
+export const getLogos = async () => {
+  try {
+    const response = await fetch(`${API_URL}/upload/logo`);
+
+    if (!response.ok) {
+      throw new Error("Erreur lors du chargement des logos");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Erreur chargement logos:", error);
+    throw error;
   }
 };

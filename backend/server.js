@@ -7,6 +7,8 @@ const db = require("./models");
 const teamRoutes = require("./routes/teams");
 const matchRoutes = require("./routes/matches");
 const MatchTimerService = require("./services/MatchTimerService");
+const path = require("path");
+const uploadRoutes = require("./routes/upload");
 
 const app = express();
 app.use(cors());
@@ -27,6 +29,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Servir les fichiers statiques (logos uploadés)
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // Initialise le service de timer avec Socket.IO
 const timerService = new MatchTimerService(io);
 app.set("timerService", timerService);
@@ -34,6 +39,7 @@ app.set("timerService", timerService);
 // Routes
 app.use("/teams", teamRoutes);
 app.use("/matches", matchRoutes);
+app.use("/upload", uploadRoutes);
 
 // Socket events
 io.on("connection", (socket) => {

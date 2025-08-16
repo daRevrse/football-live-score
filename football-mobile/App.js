@@ -7,6 +7,7 @@ import * as Notifications from "expo-notifications";
 import MatchesScreen from "./src/components/MatchesScreen";
 import MatchDetailScreen from "./src/components/MatchDetailScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+// import MatchesScreen from "./src/components/Test";
 
 const Stack = createNativeStackNavigator();
 

@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       logoUrl: {
         type: DataTypes.STRING,
-        validate: { isUrl: true },
+        validate: {},
       },
       primaryColor: {
         type: DataTypes.STRING,
