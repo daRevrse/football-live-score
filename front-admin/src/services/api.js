@@ -2,7 +2,6 @@ import axios from "axios";
 
 export const API_URL = "http://localhost:5000";
 
-// Configuration axios
 const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
@@ -11,301 +10,208 @@ const api = axios.create({
   },
 });
 
+// Intercepteur pour ajouter le token JWT
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // Intercepteur pour gérer les erreurs globalement
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("API Error:", error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      // Gérer la déconnexion si le token est invalide
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      window.location.href = "/login";
+    }
     return Promise.reject(error);
   }
 );
 
+// ==================== AUTH API ====================
+export const apiLogin = async (credentials) =>
+  await api.post("/auth/login", credentials);
+export const apiRegister = async (userData) =>
+  await api.post("/auth/register", userData);
+export const getUserProfile = async () => await api.get("/auth/me");
+
+// ==================== ADMIN API ====================
+export const getUsers = async (params = {}) =>
+  await api.get("/admin/users", { params });
+export const createUser = async (userData) =>
+  await api.post("/admin/users", userData);
+export const getUserById = async (id) => await api.get(`/admin/users/${id}`);
+export const updateUser = async (id, userData) =>
+  await api.put(`/admin/users/${id}`, userData);
+export const deleteUser = async (id) => await api.delete(`/admin/users/${id}`);
+
 // ==================== MATCHES API ====================
+export const getMatches = async (params = {}) =>
+  await api.get("/matches", { params });
+export const getMatch = async (id) => await api.get(`/matches/${id}`);
+export const createMatch = async (matchData) =>
+  await api.post("/matches", matchData);
+export const updateMatch = async (id, matchData) =>
+  await api.put(`/matches/${id}`, matchData);
+export const deleteMatch = async (id) => await api.delete(`/matches/${id}`);
 
-// GET all matches
-export const getMatches = () => api.get("/matches");
+// Match status operations
+export const startMatch = async (id) => await api.put(`/matches/${id}/start`);
+export const finishMatch = async (id) => await api.put(`/matches/${id}/finish`);
+export const pauseMatch = async (id) => await api.post(`/matches/${id}/pause`);
+export const resumeMatch = async (id) =>
+  await api.post(`/matches/${id}/resume`);
+export const startSecondHalf = async (id) =>
+  await api.post(`/matches/${id}/second-half`);
+export const setAdditionalTime = async (id, half, minutes) =>
+  await api.post(`/matches/${id}/additional-time`, { half, minutes });
 
-// GET match by ID
-export const getMatch = (id) => api.get(`/matches/${id}`);
+// Score operations
+export const updateScore = async (id, homeScore, awayScore) =>
+  await api.put(`/matches/${id}/score`, { homeScore, awayScore });
 
-// POST create new match
-export const createMatch = (matchData) => api.post("/matches", matchData);
+// Match events
+export const getMatchEvents = async (matchId) =>
+  await api.get(`/matches/${matchId}/events`);
+export const addMatchEvent = async (matchId, eventData) =>
+  await api.post(`/matches/${matchId}/events`, eventData);
 
-// PUT update match
-export const updateMatch = (id, matchData) =>
-  api.put(`/matches/${id}`, matchData);
-
-// DELETE match
-export const deleteMatch = (id) => api.delete(`/matches/${id}`);
-
-// PUT update score (ta fonction existante adaptée)
-export const updateScore = (id, homeScore, awayScore) =>
-  api.put(`/matches/${id}/score`, { homeScore, awayScore });
-
-// PUT start match
-export const startMatch = (id) => {
-  api.put(`/matches/${id}/start`);
-  api.post(`/matches/${id}/start`);
-};
-
-// PUT finish match
-export const finishMatch = (id) => {
-  api.post(`/matches/${id}/end`);
-  api.put(`/matches/${id}/finish`);
-};
-
-// Pause match
-export const pauseMatch = (id) => api.post(`/matches/${id}/pause`);
-
-// Resume match
-export const resumeMatch = (id) => api.post(`/matches/${id}/resume`);
-
-// Start second half
-export const startSecondHalf = (id) => api.post(`/matches/${id}/second-half`);
-
-// Add additional time
-export const setAdditionalTime = (id, half, minutes) =>
-  api.post(`/matches/${id}/additional-time`, { half, minutes });
-
-// GET match state
-export const getMatchState = (id) => api.get(`/matches/${id}/timer`);
-
-// ==================== MATCH EVENTS API ====================
-
-// GET events for a match
-export const getMatchEvents = (matchId) =>
-  api.get(`/matches/${matchId}/events`);
-
-// POST add event to match
-export const addMatchEvent = (matchId, eventData) =>
-  api.post(`/matches/${matchId}/events`, eventData);
+// Match timer
+export const getMatchState = async (id) =>
+  await api.get(`/matches/${id}/timer`);
 
 // ==================== TEAMS API ====================
+export const getTeams = async (params = {}) =>
+  await api.get("/teams", { params });
+export const getTeam = async (id) => await api.get(`/teams/${id}`);
+export const createTeam = async (teamData) =>
+  await api.post("/teams", teamData);
+export const updateTeam = async (id, teamData) =>
+  await api.put(`/teams/${id}`, teamData);
+export const deleteTeam = async (id) => await api.delete(`/teams/${id}`);
 
-// GET all teams
-export const getTeams = () => api.get("/teams");
+// Team matches
+export const getTeamHomeMatches = async (id) =>
+  await api.get(`/teams/${id}/home-matches`);
+export const getTeamAwayMatches = async (id) =>
+  await api.get(`/teams/${id}/away-matches`);
 
-// GET team by ID
-export const getTeam = (id) => api.get(`/teams/${id}`);
+// Team statistics
+export const getTeamStats = async (id) => await api.get(`/teams/${id}/stats`);
+export const getTeamMatches = async (id, params = {}) =>
+  await api.get(`/teams/${id}/matches`, { params });
 
-// POST create new team
-export const createTeam = (teamData) => api.post("/teams", teamData);
+// ==================== UPLOAD API ====================
+export const uploadLogo = async (file) => {
+  const formData = new FormData();
+  formData.append("logo", file);
 
-// PUT update team
-export const updateTeam = (id, teamData) => api.put(`/teams/${id}`, teamData);
+  return await api.post("/upload/logo", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
 
-// DELETE team
-export const deleteTeam = (id) => api.delete(`/teams/${id}`);
+export const deleteLogo = async (logoUrl) =>
+  await api.delete("/upload/logo", { data: { logoUrl } });
 
-// GET team matches
-export const getTeamMatches = (id) => api.get(`/teams/${id}/matches`);
-
-// GET team home matches
-export const getTeamHomeMatches = (id) => api.get(`/teams/${id}/home-matches`);
-
-// GET team away matches
-export const getTeamAwayMatches = (id) => api.get(`/teams/${id}/away-matches`);
-
-// GET team statistics
-export const getTeamStats = (id) => api.get(`/teams/${id}/stats`);
+export const getLogos = async () => await api.get("/upload/logo");
 
 // ==================== HELPER FUNCTIONS ====================
-
-// Fonction pour créer un match complet avec validation
-export const createCompleteMatch = async (
-  homeTeamId,
-  awayTeamId,
-  startAt = null
-) => {
-  try {
-    const matchData = {
-      homeTeamId: parseInt(homeTeamId),
-      awayTeamId: parseInt(awayTeamId),
-      startAt: startAt || new Date().toISOString(),
-    };
-
-    return await createMatch(matchData);
-  } catch (error) {
-    throw new Error(
-      `Erreur lors de la création du match: ${
-        error.response?.data?.error || error.message
-      }`
-    );
-  }
+// Fonctions utilitaires pour les matchs
+export const getLiveMatches = async () => {
+  const response = await getMatches({ status: "live" });
+  return response.data;
 };
 
-// Fonction pour ajouter un but
-export const addGoal = async (matchId, teamId, player = null, minute) => {
-  try {
-    const eventData = {
-      type: "goal",
-      teamId: parseInt(teamId),
-      player: player || "Joueur inconnu",
-      minute: parseInt(minute),
-    };
-
-    return await addMatchEvent(matchId, eventData);
-  } catch (error) {
-    throw new Error(
-      `Erreur lors de l'ajout du but: ${
-        error.response?.data?.error || error.message
-      }`
-    );
-  }
+export const getUpcomingMatches = async () => {
+  const response = await getMatches({ status: "scheduled" });
+  return response.data;
 };
 
-// Fonction pour ajouter un carton
+export const getCompletedMatches = async () => {
+  const response = await getMatches({ status: "completed" });
+  return response.data;
+};
+
+export const getTodayMatches = async () => {
+  const response = await getMatches();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  return response.data.filter((match) => {
+    const matchDate = new Date(match.startAt);
+    return matchDate >= today && matchDate < tomorrow;
+  });
+};
+
+// Fonctions pour les événements de match
+export const addGoal = async (matchId, teamId, player = null, minute) =>
+  await addMatchEvent(matchId, {
+    type: "goal",
+    teamId: parseInt(teamId),
+    player: player || "Joueur inconnu",
+    minute: parseInt(minute),
+  });
+
 export const addCard = async (
   matchId,
   teamId,
   player,
   minute,
   cardType = "yellow"
+) =>
+  await addMatchEvent(matchId, {
+    type: cardType === "red" ? "red_card" : "yellow_card",
+    teamId: parseInt(teamId),
+    player,
+    minute: parseInt(minute),
+  });
+
+// Fonction pour créer un match complet
+export const createCompleteMatch = async (
+  homeTeamId,
+  awayTeamId,
+  startAt = null
 ) => {
-  try {
-    const eventData = {
-      type: cardType === "red" ? "red_card" : "yellow_card",
-      teamId: parseInt(teamId),
-      player,
-      minute: parseInt(minute),
-    };
-
-    return await addMatchEvent(matchId, eventData);
-  } catch (error) {
-    throw new Error(
-      `Erreur lors de l'ajout du carton: ${
-        error.response?.data?.error || error.message
-      }`
-    );
-  }
+  const matchData = {
+    homeTeamId: parseInt(homeTeamId),
+    awayTeamId: parseInt(awayTeamId),
+    startAt: startAt || new Date().toISOString(),
+  };
+  return await createMatch(matchData);
 };
 
-// Fonction pour récupérer le classement (basé sur les statistiques des équipes)
+// Fonction pour le classement
 export const getLeaderboard = async () => {
-  try {
-    const teamsResponse = await getTeams();
-    const teams = teamsResponse.data;
+  const teamsResponse = await getTeams();
+  const teamsWithStats = await Promise.all(
+    teamsResponse.data.map(async (team) => {
+      try {
+        const statsResponse = await getTeamStats(team.id);
+        return { ...team, stats: statsResponse.data };
+      } catch {
+        return { ...team, stats: null };
+      }
+    })
+  );
 
-    // Récupérer les stats pour chaque équipe
-    const teamsWithStats = await Promise.all(
-      teams.map(async (team) => {
-        try {
-          const statsResponse = await getTeamStats(team.id);
-          return { ...team, stats: statsResponse.data };
-        } catch (error) {
-          return { ...team, stats: null };
-        }
-      })
-    );
-
-    // Trier par points, puis par différence de buts
-    return teamsWithStats
-      .filter((team) => team.stats !== null)
-      .sort((a, b) => {
-        if (b.stats.points !== a.stats.points) {
-          return b.stats.points - a.stats.points;
-        }
-        return b.stats.goalDifference - a.stats.goalDifference;
-      });
-  } catch (error) {
-    throw new Error(
-      `Erreur lors de la récupération du classement: ${error.message}`
-    );
-  }
-};
-
-// Fonction pour récupérer les matches du jour
-export const getTodayMatches = async () => {
-  try {
-    const response = await getMatches();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return response.data.filter((match) => {
-      const matchDate = new Date(match.startAt);
-      return matchDate >= today && matchDate < tomorrow;
+  return teamsWithStats
+    .filter((team) => team.stats)
+    .sort((a, b) => {
+      if (b.stats.points !== a.stats.points)
+        return b.stats.points - a.stats.points;
+      return b.stats.goalDifference - a.stats.goalDifference;
     });
-  } catch (error) {
-    throw new Error(
-      `Erreur lors de la récupération des matches du jour: ${error.message}`
-    );
-  }
 };
 
-// Fonction pour récupérer les matches live
-export const getLiveMatches = async () => {
-  try {
-    const response = await getMatches();
-    return response.data.filter((match) => match.status === "live");
-  } catch (error) {
-    throw new Error(
-      `Erreur lors de la récupération des matches en direct: ${error.message}`
-    );
-  }
-};
-
-// Upload d'un logo
-export const uploadLogo = async (file) => {
-  const formData = new FormData();
-  formData.append("logo", file);
-
-  try {
-    const response = await fetch(`${API_URL}/upload/logo`, {
-      method: "POST",
-      body: formData,
-      // Ne pas définir Content-Type, le navigateur le fera automatiquement avec boundary
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Erreur lors de l'upload");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Erreur upload logo:", error);
-    throw error;
-  }
-};
-
-// Supprimer un logo
-export const deleteLogo = async (logoUrl) => {
-  try {
-    const response = await fetch(`${API_URL}/upload/logo`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ logoUrl }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Erreur lors de la suppression");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Erreur suppression logo:", error);
-    throw error;
-  }
-};
-
-// Lister les logos disponibles
-export const getLogos = async () => {
-  try {
-    const response = await fetch(`${API_URL}/upload/logo`);
-
-    if (!response.ok) {
-      throw new Error("Erreur lors du chargement des logos");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Erreur chargement logos:", error);
-    throw error;
-  }
-};
+export default api;

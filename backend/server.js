@@ -9,6 +9,9 @@ const matchRoutes = require("./routes/matches");
 const MatchTimerService = require("./services/MatchTimerService");
 const path = require("path");
 const uploadRoutes = require("./routes/upload");
+const authRoutes = require("./routes/authRoutes");
+const protectedRoutes = require("./routes/protectedRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 app.use(cors());
@@ -40,6 +43,9 @@ app.set("timerService", timerService);
 app.use("/teams", teamRoutes);
 app.use("/matches", matchRoutes);
 app.use("/upload", uploadRoutes);
+app.use("/auth", authRoutes);
+app.use("/", protectedRoutes);
+app.use("/admin", adminRoutes);
 
 // Socket events
 io.on("connection", (socket) => {
@@ -62,7 +68,7 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 db.sequelize
   .sync({
-    force: true,
+    // force: true,
   })
   .then(() => {
     server.listen(PORT, () => console.log(`Server listening on ${PORT}`));

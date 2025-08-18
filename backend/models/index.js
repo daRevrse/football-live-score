@@ -19,6 +19,7 @@ db.Sequelize = Sequelize;
 db.Team = require("./team")(sequelize, Sequelize);
 db.Match = require("./match")(sequelize, Sequelize);
 db.Event = require("./event")(sequelize, Sequelize);
+db.User = require("./user")(sequelize, Sequelize);
 
 // Relations
 // db.Match.belongsTo(db.Team, { as: "homeTeam", foreignKey: "homeTeamId" });

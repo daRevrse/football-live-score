@@ -1,20 +1,12 @@
 import React, { useEffect, useState } from "react";
-import {
-  Trophy,
-  RefreshCw,
-  AlertCircle,
-  Calendar,
-  Clock,
-  Users,
-  Flag,
-} from "lucide-react";
+import { Trophy, RefreshCw, AlertCircle, Calendar } from "lucide-react";
 import { getMatches, getTeams } from "../services/api";
 import socket from "../services/socket";
 import PublicMatchCard from "./PublicMatchCard";
 import PublicMatchDetail from "./PublicMatchDetail";
 
 // Styles CSS intégrés
-const styles = {
+export const styles = {
   container: {
     padding: "24px",
     // background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
