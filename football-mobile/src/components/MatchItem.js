@@ -14,8 +14,9 @@ import {
   Calendar,
   CircleCheck,
 } from "lucide-react-native";
+import socket from "../services/socket";
 
-const API_URL = "http://192.168.1.65:5000";
+const API_URL = "http://192.168.1.75:5000";
 
 const MatchItem = ({ match, onPress, index = 0 }) => {
   // Extraction des données avec fallbacks
@@ -32,8 +33,12 @@ const MatchItem = ({ match, onPress, index = 0 }) => {
   const homeScore = match.homeScore ?? match.home_score ?? 0;
   const awayScore = match.awayScore ?? match.away_score ?? 0;
   const status = match.status || "scheduled";
-  const homeLogo = match.homeTeam?.logo ?? match.home_team_logo;
-  const awayLogo = match.awayTeam?.logo ?? match.away_team_logo;
+
+  // 🔑 État local pour le timer (comme dans la version web)
+  const [timer, setTimer] = useState({
+    minute: match.currentMinute || 0,
+    second: match.currentSecond || 0,
+  });
 
   // Animation
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -56,16 +61,51 @@ const MatchItem = ({ match, onPress, index = 0 }) => {
     ]).start();
   }, []);
 
+  // 🔑 Gestion Socket individuelle par match (comme dans la version web)
+  useEffect(() => {
+    if (status !== "live") return;
+
+    console.log(`🔌 Joining match ${match.id} for timer updates`);
+    socket.emit("joinMatch", match.id);
+
+    const handleTimerUpdate = (data) => {
+      if (data.matchId === match.id) {
+        // console.log(`⏱️ Timer update for match ${match.id}:`, data);
+        setTimer({
+          minute: data.currentMinute,
+          second: data.currentSecond,
+        });
+      }
+    };
+
+    socket.on("match:timer", handleTimerUpdate);
+
+    return () => {
+      console.log(`🔌 Leaving match ${match.id}`);
+      socket.emit("leaveMatch", match.id);
+      socket.off("match:timer", handleTimerUpdate);
+    };
+  }, [match.id, status]);
+
+  // 🔑 Mettre à jour le timer local quand les props changent
+  useEffect(() => {
+    setTimer({
+      minute: match.currentMinute || 0,
+      second: match.currentSecond || 0,
+    });
+  }, [match.currentMinute, match.currentSecond]);
+
   // Styles dynamiques
   const getStatusConfig = () => {
     switch (status) {
       case "live":
+      case "paused":
         return {
           backgroundColor: "#fef2f2",
           borderColor: "#dc2626",
           textColor: "#dc2626",
           icon: <Flame width={14} height={14} color="#dc2626" />,
-          text: "EN DIRECT",
+          text: status === "paused" ? "EN PAUSE" : "EN DIRECT",
         };
       case "finished":
         return {
@@ -95,7 +135,7 @@ const MatchItem = ({ match, onPress, index = 0 }) => {
   };
 
   const statusConfig = getStatusConfig();
-  const isLive = status === "live";
+  const isLive = status === "live" || status === "paused";
 
   // Formatage de la date
   const formatDate = (dateString) => {
@@ -188,10 +228,26 @@ const MatchItem = ({ match, onPress, index = 0 }) => {
 
           {/* Section centrale (Score ou VS) */}
           <View style={styles.centerSection}>
-            {status === "finished" || status === "live" ? (
+            {status === "finished" || isLive ? (
               <View style={styles.scoreDisplay}>
                 <Text style={styles.score}>{homeScore}</Text>
-                <Text style={styles.scoreSeparator}>-</Text>
+
+                <View
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {isLive && (
+                    <View style={styles.timerContainer}>
+                      <Text style={styles.timerText}>
+                        {String(timer.minute).padStart(2, "0")}:
+                        {String(timer.second).padStart(2, "0")}'
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.scoreSeparator}>-</Text>
+                </View>
                 <Text style={styles.score}>{awayScore}</Text>
               </View>
             ) : (
@@ -240,139 +296,121 @@ const MatchItem = ({ match, onPress, index = 0 }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "white",
-    borderRadius: 16,
-    margin: 12,
-    overflow: "hidden",
-    borderWidth: 2,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#f8fafc",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    marginBottom: 12,
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#64748b",
-    fontWeight: "600",
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
     borderWidth: 1,
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: "bold",
+    marginLeft: 4,
   },
   mainContent: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    padding: 24,
+    marginBottom: 12,
   },
   teamSection: {
     flex: 1,
     alignItems: "center",
-    maxWidth: "35%",
-  },
-  teamLogo: {
-    width: "100%",
-    height: "100%",
-    // borderRadius: 28, // Même valeur que teamBadge pour un cercle parfait
   },
   teamBadge: {
-    width: 56,
-    height: 56,
-    // borderRadius: 28,
-    // backgroundColor: "#f1f5f9",
-    alignItems: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#f1f5f9",
     justifyContent: "center",
-    marginBottom: 12,
-    // borderWidth: 2,
-    // borderColor: "#e2e8f0",
-    // overflow: "hidden", // Important pour que l'image respecte le border radius
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  teamLogo: {
+    width: 40,
+    height: 40,
   },
   teamShort: {
     fontSize: 14,
-    fontWeight: "900",
-    color: "#3b82f6",
-    letterSpacing: 0.5,
+    fontWeight: "bold",
+    color: "#334155",
   },
   teamName: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#1e293b",
+    fontWeight: "500",
     textAlign: "center",
-    lineHeight: 18,
+    maxWidth: 100,
   },
   centerSection: {
+    minWidth: 100,
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    minWidth: "30%",
   },
   scoreDisplay: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    justifyContent: "center",
+    minWidth: 100,
   },
   score: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "#1e293b",
-    minWidth: 40,
+    fontSize: 24,
+    fontWeight: "bold",
+    minWidth: 30,
     textAlign: "center",
   },
   scoreSeparator: {
-    fontSize: 24,
-    color: "#cbd5e1",
-    marginHorizontal: 16,
-    fontWeight: "300",
+    fontSize: 18,
+    marginHorizontal: 8,
+  },
+  timerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 8,
+  },
+  timerText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#dc2626",
   },
   vsContainer: {
-    backgroundColor: "#eff6ff",
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
+    paddingVertical: 8,
   },
   vsText: {
     fontSize: 16,
-    fontWeight: "800",
-    color: "#2563eb",
-    letterSpacing: 2,
+    fontWeight: "bold",
+    color: "#64748b",
   },
   locationSection: {
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-    backgroundColor: "#fefefe",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    marginTop: 8,
   },
   locationText: {
     fontSize: 12,
     color: "#64748b",
-    fontWeight: "500",
+    marginLeft: 4,
   },
 });
 

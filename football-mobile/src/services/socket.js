@@ -1,7 +1,7 @@
 // src/services/socket.js
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "http://192.168.1.65:5000"; // <--- adapte si besoin (IP de ton PC pour test device)
+const SOCKET_URL = "http://192.168.1.75:5000"; // <--- adapte si besoin (IP de ton PC pour test device)
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],

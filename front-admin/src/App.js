@@ -10,6 +10,7 @@ import { LayoutDashboard, Trophy, Users, Calendar, Home } from "lucide-react";
 import MatchList from "./components/MatchList";
 import TeamList from "./components/TeamList";
 import PublicMatchList from "./components/PublicMatchList";
+import PublicMatchDetail from "./components/PublicMatchDetail";
 
 export default function App() {
   // Styles CSS intégrés
@@ -97,7 +98,7 @@ export default function App() {
     contentCard: {
       backgroundColor: "white",
       borderRadius: "12px",
-      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+      // boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
       padding: "24px",
     },
   };
@@ -173,15 +174,28 @@ export default function App() {
               path="/"
               element={
                 <>
-                  <div style={styles.header}>
+                  {/* <div style={styles.header}>
                     <h1 style={styles.pageTitle}>Tableau de bord</h1>
-                  </div>
+                  </div> */}
                   <div style={styles.contentCard}>
                     <PublicMatchList />
                   </div>
                 </>
               }
             />
+            {/* <Route
+              path="/match/:matchId"
+              element={
+                <>
+                  {/* <div style={styles.header}>
+                    <h1 style={styles.pageTitle}>Détails du match</h1>
+                  </div> */}
+            {/* <div style={styles.contentCard}> */}
+            {/* <PublicMatchDetail /> */}
+            {/* </div> 
+                </>
+              }
+            /> */}
             <Route
               path="/matches"
               element={

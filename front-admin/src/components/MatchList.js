@@ -474,63 +474,6 @@ export default function MatchList() {
       ) : (
         <div style={styles.grid}>
           {filteredMatches.map((match) => (
-            // <div
-            //   key={match.id}
-            //   style={styles.matchCard}
-            //   onMouseEnter={(e) =>
-            //     Object.assign(e.currentTarget.style, styles.matchCardHover)
-            //   }
-            //   onMouseLeave={(e) => {
-            //     e.currentTarget.style.transform = "none";
-            //     e.currentTarget.style.boxShadow =
-            //       "0 4px 12px rgba(0, 0, 0, 0.05)";
-            //   }}
-            // >
-            //   <div style={styles.matchHeader}>
-            //     <h3 style={styles.matchTitle}>
-            //       {match.homeTeam.name} vs {match.awayTeam.name}
-            //     </h3>
-            //     <span
-            //       style={{
-            //         ...styles.matchStatus,
-            //         ...getStatusColor(match.status),
-            //       }}
-            //     >
-            //       {match.status}
-            //     </span>
-            //   </div>
-            //   <div style={styles.matchBody}>
-            //     <div style={styles.matchInfo}>
-            //       <div style={styles.matchScore}>
-            //         {match.homeScore} - {match.awayScore}
-            //       </div>
-            //       <div style={styles.matchInfoRow}>
-            //         <Clock size={16} />
-            //         <span>{new Date(match.startAt).toLocaleString()}</span>
-            //       </div>
-            //       <div style={styles.matchInfoRow}>
-            //         <Flag size={16} />
-            //         <span>{match.location || "Lieu non spécifié"}</span>
-            //       </div>
-            //     </div>
-            //   </div>
-            //   <div style={styles.matchActions}>
-            //     <button
-            //       style={{ ...styles.actionButton, ...styles.editButton }}
-            //       onClick={() => setSelectedMatchId(match.id)}
-            //     >
-            //       <Edit size={14} />
-            //       Éditer
-            //     </button>
-            //     <button
-            //       style={{ ...styles.actionButton, ...styles.deleteButton }}
-            //       onClick={() => handleDeleteMatch(match.id)}
-            //     >
-            //       <Trash2 size={14} />
-            //       Supprimer
-            //     </button>
-            //   </div>
-            // </div>
             <MatchCard
               key={match.id}
               match={match}
@@ -591,7 +534,6 @@ export default function MatchList() {
               </button>
             </div>
             <MatchEditor
-              // matchId={selectedMatchId}
               match={matches.find((m) => m.id === selectedMatchId)}
               onClose={() => setSelectedMatchId(null)}
               onUpdate={loadMatches}
