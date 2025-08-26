@@ -3,7 +3,15 @@ import { getTeams, deleteTeam } from "../services/api";
 import socket from "../services/socket";
 import TeamForm from "./TeamForm";
 import TeamItem from "./TeamItem";
-import { Loader2, RefreshCw, AlertCircle, Plus, Users, X } from "lucide-react";
+import {
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  Plus,
+  Users,
+  X,
+  Shield,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function TeamList() {
@@ -230,7 +238,7 @@ export default function TeamList() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h2 style={styles.title}>
-          <Users size={24} />
+          <Shield size={24} />
           Liste des équipes
           <span
             style={{ fontSize: "14px", fontWeight: "normal", color: "#6b7280" }}
@@ -309,7 +317,7 @@ export default function TeamList() {
         <div style={styles.emptyState}>
           {searchTerm ? (
             <>
-              <Users size={48} style={{ marginBottom: "16px" }} />
+              <Shield size={48} style={{ marginBottom: "16px" }} />
               <h3>Aucune équipe trouvée</h3>
               <p>
                 Aucune équipe ne correspond à votre recherche "{searchTerm}"
@@ -317,7 +325,7 @@ export default function TeamList() {
             </>
           ) : (
             <>
-              <Users size={48} style={{ marginBottom: "16px" }} />
+              <Shield size={48} style={{ marginBottom: "16px" }} />
               <h3>Aucune équipe disponible</h3>
               <p>Commencez par créer votre première équipe</p>
               <button

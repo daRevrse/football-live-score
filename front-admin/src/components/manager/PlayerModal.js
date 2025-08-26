@@ -169,7 +169,7 @@ export default function PlayerModal({ player, teamId, onClose, onSuccess }) {
       width: "90%",
       maxWidth: "600px",
       maxHeight: "90vh",
-      overflow: "auto",
+      overflow: "hidden",
       boxShadow: "0 25px 50px rgba(0, 0, 0, 0.25)",
     },
     header: {
@@ -178,6 +178,9 @@ export default function PlayerModal({ player, teamId, onClose, onSuccess }) {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
+      backgroundColor: "#f5f7fa",
+      position: "sticky",
+      top: 0,
     },
     title: {
       fontSize: "20px",
@@ -203,6 +206,7 @@ export default function PlayerModal({ player, teamId, onClose, onSuccess }) {
       display: "flex",
       flexDirection: "column",
       gap: "20px",
+      marginBottom: "50px",
     },
     row: {
       display: "grid",
@@ -262,6 +266,9 @@ export default function PlayerModal({ player, teamId, onClose, onSuccess }) {
       display: "flex",
       justifyContent: "flex-end",
       gap: "12px",
+      backgroundColor: "white",
+      position: "sticky",
+      bottom: 0,
     },
     button: {
       display: "inline-flex",

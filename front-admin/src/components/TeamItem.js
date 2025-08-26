@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, Users, BarChart2 } from "lucide-react";
+import { Trash2, Users, BarChart2, Shield } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function TeamItem({ team, onDelete, onSelect, isSelected }) {
@@ -123,7 +123,7 @@ export default function TeamItem({ team, onDelete, onSelect, isSelected }) {
     >
       <div style={styles.header}>
         <div style={styles.shortName}>
-          <Users size={18} />
+          <Shield size={18} />
           {team.shortName}
         </div>
         {user?.role === "Admin" && (

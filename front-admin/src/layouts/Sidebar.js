@@ -181,12 +181,12 @@ const Sidebar = () => {
 
   // Menu commun (visible pour tous les rôles connectés)
   const commonMenu = [
-    {
-      to: "/profile",
-      icon: <UserCheck size={18} style={styles.navLinkIcon} />,
-      label: "Mon Profil",
-      roles: ["Admin", "Manager", "Reporter", "User"],
-    },
+    // {
+    //   to: "/profile",
+    //   icon: <UserCheck size={18} style={styles.navLinkIcon} />,
+    //   label: "Mon Profil",
+    //   roles: ["Admin", "Manager", "Reporter", "User"],
+    // },
   ];
 
   // Fonction pour obtenir les menus selon le rôle
@@ -205,15 +205,21 @@ const Sidebar = () => {
           ...adminMenu,
           ...managerMenu, // Admin peut voir toutes les fonctionnalités
           ...reporterMenu,
-          ...publicMenu,
-          ...commonMenu,
+          // ...publicMenu,
+          // ...commonMenu,
         ];
         break;
       case "Manager":
-        menuItems = [...managerMenu, ...publicMenu, ...commonMenu];
+        menuItems = [
+          ...managerMenu,
+          // ...publicMenu, ...commonMenu
+        ];
         break;
       case "Reporter":
-        menuItems = [...reporterMenu, ...publicMenu, ...commonMenu];
+        menuItems = [
+          ...reporterMenu,
+          //  ...publicMenu, ...commonMenu
+        ];
         break;
       default:
         menuItems = [...publicMenu, ...commonMenu];

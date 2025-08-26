@@ -37,7 +37,9 @@ const AdminUsers = () => {
                 ? "#f5222d"
                 : role === "Reporter"
                 ? "#1890ff"
-                : "#52c41a",
+                : role === "Manager"
+                ? "#52c41a"
+                : "#6b7280",
           }}
         >
           {role}
@@ -186,6 +188,7 @@ const AdminUsers = () => {
             <Select>
               <Option value="Admin">Admin</Option>
               <Option value="Reporter">Reporter</Option>
+              <Option value="Manager">Manager</Option>
               <Option value="User">User</Option>
             </Select>
           </Form.Item>

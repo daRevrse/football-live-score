@@ -1,4 +1,3 @@
-// front-admin/src/App.js - Version mise à jour
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
@@ -14,10 +13,18 @@ import LiveMatches from "./components/LiveMatches";
 import UpcomingMatches from "./components/UpcomingMatches";
 import CompletedMatches from "./components/CompletedMatches";
 
-// Nouvelles pages Manager
+import ProtectedRoute from "./components/ProtectedRoute";
+import { TeamStats } from "./pages/manager/TeamStats";
+import { TeamMatches } from "./pages/manager/TeamMatches";
+import { TeamEdit } from "./pages/manager/TeamEdit";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { AdminReports } from "./pages/admin/AdminReports";
+import { AdminSettings } from "./pages/admin/AdminSettings";
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import PlayersManagement from "./pages/manager/PlayersManagement";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { ReporterDashboard } from "./pages/reporter/ReporterDashboard";
+import { ReporterMatches } from "./pages/reporter/ReporterMatches";
+import { EventsManagement } from "./pages/reporter/EventsManagement";
 
 const App = () => {
   return (
@@ -38,10 +45,34 @@ const App = () => {
 
             {/* Routes Admin */}
             <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute roles={["Admin"]}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/users"
               element={
                 <ProtectedRoute roles={["Admin"]}>
                   <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <ProtectedRoute roles={["Admin"]}>
+                  <AdminReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute roles={["Admin"]}>
+                  <AdminSettings />
                 </ProtectedRoute>
               }
             />
@@ -60,6 +91,56 @@ const App = () => {
               element={
                 <ProtectedRoute roles={["Manager", "Admin"]}>
                   <PlayersManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manager/team/edit"
+              element={
+                <ProtectedRoute roles={["Manager", "Admin"]}>
+                  <TeamEdit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manager/stats"
+              element={
+                <ProtectedRoute roles={["Manager", "Admin"]}>
+                  <TeamStats />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manager/matches"
+              element={
+                <ProtectedRoute roles={["Manager", "Admin"]}>
+                  <TeamMatches />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Routes Reporter */}
+            <Route
+              path="/reporter/dashboard"
+              element={
+                <ProtectedRoute roles={["Reporter", "Admin"]}>
+                  <ReporterDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reporter/matches"
+              element={
+                <ProtectedRoute roles={["Reporter", "Admin"]}>
+                  <ReporterMatches />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reporter/events"
+              element={
+                <ProtectedRoute roles={["Reporter", "Admin"]}>
+                  <EventsManagement />
                 </ProtectedRoute>
               }
             />
