@@ -24,7 +24,7 @@ const TeamStats = () => {
           getTeamPlayers(user.teamId),
         ]);
         setStats(statsResponse.data);
-        setPlayers(playersResponse.data);
+        setPlayers(playersResponse.data.players || []);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des statistiques:", error);

@@ -1,6 +1,6 @@
 // backend/services/TeamService.js
 const crypto = require("crypto");
-const { User, Team, sequelize } = require("../models");
+const { User, Team, Player, sequelize } = require("../models");
 
 class TeamService {
   /**

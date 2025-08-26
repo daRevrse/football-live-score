@@ -543,10 +543,3 @@ router.get("/:id/stats", async (req, res) => {
 });
 
 module.exports = router;
-// model: db.Match,
-//             as: "homeMatches",
-//             include: [
-//               { model: db.Team, as: "awayTeam" }
-//             ]
-//           },
-//           {

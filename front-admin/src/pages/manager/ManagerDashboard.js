@@ -1,721 +1,411 @@
-// front-admin/src/pages/manager/ManagerDashboard.js
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../context/AuthContext";
+import {
+  getTeamStats,
+  getTeamPlayers,
+  getTeamMatches,
+  getMatches,
+  getTeam,
+} from "../../services/api";
 import {
   Users,
   Trophy,
+  Target,
   Calendar,
+  TrendingUp,
+  Clock,
   AlertCircle,
-  Plus,
-  Edit3,
-  Activity,
-  BarChart3,
-  RefreshCw,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-import {
-  getTeamPlayers,
-  getTeamStats,
-  getTeamMatches,
-} from "../../services/api";
+import socket from "../../services/socket";
+import { styles } from "../../styles/common";
+// import { styles } from './styles';
 
-export default function ManagerDashboard() {
+const ManagerDashboard = () => {
   const { user } = useAuth();
-  const [team, setTeam] = useState(null);
-  const [players, setPlayers] = useState([]);
-  const [stats, setStats] = useState({});
-  const [matches, setMatches] = useState([]);
+  const [dashboardData, setDashboardData] = useState({
+    team: null,
+    stats: null,
+    players: [],
+    recentMatches: [],
+    upcomingMatches: [],
+    liveMatches: [],
+  });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user && user.teamId) {
+    if (user?.teamId) {
       loadDashboardData();
-      setTeam(user.managedTeam || { name: "Votre équipe" });
+
+      // Socket pour les mises à jour en temps réel
+      socket.on("matchUpdated", handleMatchUpdate);
+      socket.on("matchStarted", handleMatchUpdate);
+      socket.on("matchFinished", handleMatchUpdate);
+
+      return () => {
+        socket.off("matchUpdated");
+        socket.off("matchStarted");
+        socket.off("matchFinished");
+      };
     }
-  }, [user]);
+  }, [user?.teamId]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      setError(null);
+      setError("");
 
-      // Charger les joueurs
-      const playersResponse = await getTeamPlayers(user.teamId);
-      const playersData = playersResponse.data || {};
+      const [teamResponse, statsResponse, playersResponse, allMatchesResponse] =
+        await Promise.all([
+          getTeam(user.teamId),
+          getTeamStats(user.teamId),
+          getTeamPlayers(user.teamId),
+          getMatches({ teamId: user.teamId }),
+        ]);
 
-      setPlayers(playersData.players || []);
-      setStats(
-        playersData.stats || {
-          total: 0,
-          active: 0,
-          injured: 0,
-          suspended: 0,
-        }
+      const matches = allMatchesResponse.data || [];
+
+      // Filtrer les matchs
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const recentMatches = matches
+        .filter(
+          (match) =>
+            match.status === "completed" &&
+            new Date(match.startAt) >= oneWeekAgo
+        )
+        .sort((a, b) => new Date(b.startAt) - new Date(a.startAt))
+        .slice(0, 5);
+
+      const upcomingMatches = matches
+        .filter(
+          (match) =>
+            match.status === "scheduled" && new Date(match.startAt) > now
+        )
+        .sort((a, b) => new Date(a.startAt) - new Date(b.startAt))
+        .slice(0, 3);
+
+      const liveMatches = matches.filter((match) =>
+        ["live", "first_half", "second_half", "paused"].includes(match.status)
       );
 
-      // Essayer de charger les matchs (peut échouer si pas encore implémenté)
-      try {
-        const matchesResponse = await getTeamMatches(user.teamId, {
-          limit: 5,
-          status: "live,scheduled",
-        });
-        setMatches(matchesResponse.data || []);
-      } catch (matchError) {
-        console.log("Matchs pas encore disponibles:", matchError);
-        setMatches([]);
-      }
-    } catch (err) {
-      console.error("Erreur chargement dashboard:", err);
-      setError("Erreur de chargement des données");
-      // Valeurs par défaut en cas d'erreur
-      setPlayers([]);
-      setStats({ total: 0, active: 0, injured: 0, suspended: 0 });
-      setMatches([]);
+      setDashboardData({
+        team: teamResponse.data,
+        stats: statsResponse.data,
+        players: playersResponse.data.players || [],
+        recentMatches,
+        upcomingMatches,
+        liveMatches,
+      });
+
+      console.log("Data loaded", {
+        team: teamResponse.data,
+        stats: statsResponse.data,
+        players: playersResponse.data.players,
+        recentMatches,
+        upcomingMatches,
+        liveMatches,
+      });
+    } catch (error) {
+      console.error("Erreur lors du chargement du dashboard:", error);
+      setError("Impossible de charger les données du tableau de bord");
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      active: "#10b981",
-      injured: "#ef4444",
-      suspended: "#f59e0b",
-      inactive: "#6b7280",
-    };
-    return colors[status] || "#6b7280";
+  const handleMatchUpdate = (updatedMatch) => {
+    // Vérifier si le match concerne notre équipe
+    if (
+      updatedMatch.homeTeam.id === user.teamId ||
+      updatedMatch.awayTeam.id === user.teamId
+    ) {
+      loadDashboardData(); // Recharger les données
+    }
   };
 
-  const getStatusLabel = (status) => {
-    const labels = {
-      active: "Actif",
-      injured: "Blessé",
-      suspended: "Suspendu",
-      inactive: "Inactif",
-    };
-    return labels[status] || status;
+  const getTeamLogo = (team) => {
+    if (team?.logo) {
+      return `${
+        process.env.REACT_APP_API_URL || "http://localhost:5000"
+      }/uploads/${team.logo}`;
+    }
+    return null;
   };
 
-  const navigateTo = (path) => {
-    window.location.href = path;
+  const getMatchResult = (match) => {
+    if (match.status !== "completed") return null;
+
+    const isHome = match.homeTeam.id === user?.teamId;
+    const ourScore = isHome ? match.homeScore : match.awayScore;
+    const theirScore = isHome ? match.awayScore : match.homeScore;
+
+    if (ourScore > theirScore) return "W";
+    if (ourScore < theirScore) return "L";
+    return "D";
   };
 
-  const styles = {
-    container: {
-      padding: "24px",
-      minHeight: "100vh",
-      backgroundColor: "#f8fafc",
-    },
-    header: {
-      marginBottom: "32px",
-    },
-    welcomeCard: {
-      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      borderRadius: "16px",
-      padding: "24px",
-      color: "white",
-      marginBottom: "24px",
-      boxShadow: "0 10px 25px rgba(102, 126, 234, 0.3)",
-    },
-    title: {
-      fontSize: "28px",
-      fontWeight: "bold",
-      margin: "0 0 8px 0",
-    },
-    subtitle: {
-      fontSize: "16px",
-      opacity: 0.9,
-      margin: 0,
-    },
-    refreshButton: {
-      position: "absolute",
-      top: "20px",
-      right: "20px",
-      padding: "8px",
-      border: "none",
-      borderRadius: "50%",
-      backgroundColor: "rgba(255,255,255,0.2)",
-      color: "white",
-      cursor: "pointer",
-      transition: "all 0.2s ease",
-    },
-    statsGrid: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "16px",
-      marginBottom: "32px",
-    },
-    statCard: {
-      backgroundColor: "white",
-      borderRadius: "12px",
-      padding: "20px",
-      border: "1px solid #e2e8f0",
-      transition: "transform 0.2s ease, box-shadow 0.2s ease",
-      cursor: "pointer",
-    },
-    statCardHover: {
-      transform: "translateY(-2px)",
-      boxShadow: "0 8px 25px rgba(0,0,0,0.1)",
-    },
-    statIcon: {
-      width: "40px",
-      height: "40px",
-      borderRadius: "8px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: "12px",
-    },
-    statValue: {
-      fontSize: "24px",
-      fontWeight: "bold",
-      color: "#1e293b",
-      margin: "0 0 4px 0",
-    },
-    statLabel: {
-      fontSize: "14px",
-      color: "#64748b",
-      margin: 0,
-    },
-    contentGrid: {
-      display: "grid",
-      gridTemplateColumns: "2fr 1fr",
-      gap: "24px",
-    },
-    card: {
-      backgroundColor: "white",
-      borderRadius: "12px",
-      padding: "24px",
-      border: "1px solid #e2e8f0",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    },
-    cardHeader: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: "20px",
-    },
-    cardTitle: {
-      fontSize: "18px",
-      fontWeight: "600",
-      color: "#1e293b",
-      margin: 0,
-    },
-    button: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "8px",
-      padding: "8px 16px",
-      borderRadius: "8px",
-      border: "none",
-      cursor: "pointer",
-      fontSize: "14px",
-      fontWeight: "500",
-      transition: "all 0.2s ease",
-      textDecoration: "none",
-    },
-    buttonPrimary: {
-      backgroundColor: "#3b82f6",
-      color: "white",
-    },
-    buttonSecondary: {
-      backgroundColor: "#f1f5f9",
-      color: "#475569",
-    },
-    buttonHover: {
-      transform: "translateY(-1px)",
-      boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
-    },
-    playersList: {
-      maxHeight: "400px",
-      overflowY: "auto",
-    },
-    playerItem: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "12px 0",
-      borderBottom: "1px solid #f1f5f9",
-      transition: "background-color 0.2s ease",
-    },
-    playerItemHover: {
-      backgroundColor: "#f8fafc",
-      borderRadius: "6px",
-      padding: "12px",
-    },
-    playerInfo: {
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
-    },
-    playerAvatar: {
-      width: "40px",
-      height: "40px",
-      borderRadius: "50%",
-      backgroundColor: "#e2e8f0",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "14px",
-      fontWeight: "600",
-      color: "#64748b",
-      border: "2px solid #f1f5f9",
-    },
-    playerDetails: {
-      display: "flex",
-      flexDirection: "column",
-    },
-    playerName: {
-      fontSize: "14px",
-      fontWeight: "500",
-      color: "#1e293b",
-      margin: 0,
-    },
-    playerMeta: {
-      fontSize: "12px",
-      color: "#64748b",
-      margin: 0,
-    },
-    statusBadge: {
-      padding: "4px 8px",
-      borderRadius: "6px",
-      fontSize: "12px",
-      fontWeight: "500",
-      textTransform: "capitalize",
-    },
-    matchItem: {
-      padding: "16px",
-      border: "1px solid #e2e8f0",
-      borderRadius: "8px",
-      marginBottom: "12px",
-      transition: "all 0.2s ease",
-    },
-    matchItemHover: {
-      borderColor: "#3b82f6",
-      backgroundColor: "#f8fafc",
-    },
-    matchTeams: {
-      fontSize: "14px",
-      fontWeight: "600",
-      color: "#1e293b",
-      marginBottom: "4px",
-    },
-    matchDate: {
-      fontSize: "12px",
-      color: "#64748b",
-    },
-    emptyState: {
-      textAlign: "center",
-      padding: "40px 20px",
-      color: "#64748b",
-    },
-    emptyIcon: {
-      margin: "0 auto 16px",
-      opacity: 0.3,
-    },
-    loading: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: "200px",
-      color: "#64748b",
-      gap: "16px",
-    },
-    loadingSpinner: {
-      animation: "spin 1s linear infinite",
-    },
-    error: {
-      padding: "16px",
-      backgroundColor: "#fef2f2",
-      color: "#dc2626",
-      borderRadius: "8px",
-      marginBottom: "16px",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-    },
-    quickActions: {
-      display: "flex",
-      flexDirection: "column",
-      gap: "12px",
-      marginTop: "16px",
-    },
-    quickActionButton: {
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
-      padding: "12px 16px",
-      backgroundColor: "#f8fafc",
-      border: "1px solid #e2e8f0",
-      borderRadius: "8px",
-      color: "#475569",
-      textDecoration: "none",
-      fontSize: "14px",
-      fontWeight: "500",
-      transition: "all 0.2s ease",
-      cursor: "pointer",
-    },
+  const getResultStyle = (result) => {
+    switch (result) {
+      case "W":
+        return { backgroundColor: "#dcfce7", color: "#16a34a" };
+      case "L":
+        return { backgroundColor: "#fee2e2", color: "#dc2626" };
+      case "D":
+        return { backgroundColor: "#fef3c7", color: "#92400e" };
+      default:
+        return { backgroundColor: "#f3f4f6", color: "#6b7280" };
+    }
   };
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.loading}>
-          <RefreshCw size={32} style={styles.loadingSpinner} />
-          <div>Chargement du dashboard...</div>
-        </div>
-        <style>
-          {`
-            @keyframes spin {
-              from { transform: rotate(0deg); }
-              to { transform: rotate(360deg); }
-            }
-          `}
-        </style>
+      <div style={styles.loadingContainer}>
+        <div>Chargement du tableau de bord...</div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div style={styles.errorContainer}>
+        <AlertCircle size={48} />
+        <h3>Erreur de chargement</h3>
+        <p>{error}</p>
+        <button onClick={loadDashboardData} style={styles.retryButton}>
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  const { team, stats, players, recentMatches, upcomingMatches, liveMatches } =
+    dashboardData;
+
   return (
     <div style={styles.container}>
-      {error && (
-        <div style={styles.error}>
-          <AlertCircle size={16} />
-          {error}
-          <button
-            onClick={loadDashboardData}
-            style={{
-              marginLeft: "auto",
-              padding: "4px 8px",
-              border: "none",
-              borderRadius: "4px",
-              backgroundColor: "#dc2626",
-              color: "white",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-          >
-            Réessayer
-          </button>
-        </div>
-      )}
-
+      {/* Header avec logo de l'équipe */}
       <div style={styles.header}>
-        <div style={{ ...styles.welcomeCard, position: "relative" }}>
-          <button
-            style={styles.refreshButton}
-            onClick={loadDashboardData}
-            onMouseEnter={(e) =>
-              (e.target.style.backgroundColor = "rgba(255,255,255,0.3)")
-            }
-            onMouseLeave={(e) =>
-              (e.target.style.backgroundColor = "rgba(255,255,255,0.2)")
-            }
-            title="Actualiser les données"
-          >
-            <RefreshCw size={16} />
-          </button>
-
-          <h1 style={styles.title}>
-            Bienvenue, {user.firstName || user.username} !
-          </h1>
-          <p style={styles.subtitle}>
-            Gérez votre équipe {team?.name || "votre équipe"} depuis ce tableau
-            de bord
-          </p>
-        </div>
-
-        {/* Statistiques rapides */}
-        <div style={styles.statsGrid}>
-          <div
-            style={styles.statCard}
-            onClick={() => navigateTo("/manager/players")}
-            onMouseEnter={(e) =>
-              Object.assign(e.currentTarget.style, styles.statCardHover)
-            }
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <div style={{ ...styles.statIcon, backgroundColor: "#dbeafe" }}>
-              <Users size={20} color="#3b82f6" />
-            </div>
-            <div style={styles.statValue}>{stats.total || 0}</div>
-            <div style={styles.statLabel}>Joueurs Total</div>
-          </div>
-
-          <div
-            style={styles.statCard}
-            onClick={() => navigateTo("/manager/players?status=active")}
-            onMouseEnter={(e) =>
-              Object.assign(e.currentTarget.style, styles.statCardHover)
-            }
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <div style={{ ...styles.statIcon, backgroundColor: "#dcfce7" }}>
-              <Activity size={20} color="#16a34a" />
-            </div>
-            <div style={styles.statValue}>{stats.active || 0}</div>
-            <div style={styles.statLabel}>Joueurs Actifs</div>
-          </div>
-
-          <div
-            style={styles.statCard}
-            onClick={() => navigateTo("/manager/players?status=injured")}
-            onMouseEnter={(e) =>
-              Object.assign(e.currentTarget.style, styles.statCardHover)
-            }
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <div style={{ ...styles.statIcon, backgroundColor: "#fee2e2" }}>
-              <AlertCircle size={20} color="#dc2626" />
-            </div>
-            <div style={styles.statValue}>{stats.injured || 0}</div>
-            <div style={styles.statLabel}>Blessés</div>
-          </div>
-
-          <div
-            style={styles.statCard}
-            onMouseEnter={(e) =>
-              Object.assign(e.currentTarget.style, styles.statCardHover)
-            }
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <div style={{ ...styles.statIcon, backgroundColor: "#fef3c7" }}>
-              <Calendar size={20} color="#d97706" />
-            </div>
-            <div style={styles.statValue}>{matches.length}</div>
-            <div style={styles.statLabel}>Prochains Matchs</div>
+        <div style={styles.teamHeader}>
+          {team?.logo && (
+            <img
+              src={getTeamLogo(team)}
+              alt={`${team.name} logo`}
+              style={styles.teamLogo}
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          )}
+          <div>
+            <h1 style={styles.title}>Tableau de Bord - {team?.name}</h1>
+            <p style={styles.subtitle}>Manager: {user?.username}</p>
           </div>
         </div>
       </div>
 
-      <div style={styles.contentGrid}>
-        {/* Liste des joueurs */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <h2 style={styles.cardTitle}>Effectif de l'équipe</h2>
-            <button
-              style={{ ...styles.button, ...styles.buttonPrimary }}
-              onClick={() => navigateTo("/manager/players")}
-              onMouseEnter={(e) =>
-                Object.assign(e.target.style, styles.buttonHover)
-              }
-              onMouseLeave={(e) => {
-                e.target.style.transform = "none";
-                e.target.style.boxShadow = "none";
-              }}
-            >
-              <Plus size={16} />
-              Gérer les joueurs
-            </button>
+      {/* Alerte matchs en cours */}
+      {liveMatches.length > 0 && (
+        <div style={styles.liveAlert}>
+          <div style={styles.liveIndicator}>
+            <div style={styles.liveDot}></div>
+            MATCH EN COURS
           </div>
+          {liveMatches.map((match) => (
+            <div key={match.id} style={styles.liveMatchInfo}>
+              <span>
+                {match.homeTeam.name} {match.homeScore} - {match.awayScore}{" "}
+                {match.awayTeam.name}
+              </span>
+              <span>{match.currentMinute}'</span>
+            </div>
+          ))}
+        </div>
+      )}
 
-          <div style={styles.playersList}>
-            {players.length === 0 ? (
-              <div style={styles.emptyState}>
-                <Users size={48} style={styles.emptyIcon} />
-                <h3 style={{ margin: "0 0 8px", color: "#374151" }}>
-                  Aucun joueur dans l'effectif
-                </h3>
-                <p style={{ margin: "0 0 20px", fontSize: "14px" }}>
-                  Commencez par ajouter des joueurs à votre équipe
-                </p>
-                <button
-                  style={{ ...styles.button, ...styles.buttonPrimary }}
-                  onClick={() => navigateTo("/manager/players")}
-                >
-                  <Plus size={16} />
-                  Ajouter le premier joueur
-                </button>
-              </div>
-            ) : (
-              <>
-                {players.slice(0, 8).map((player) => (
-                  <div
-                    key={player.id}
-                    style={styles.playerItem}
-                    onMouseEnter={(e) =>
-                      Object.assign(
-                        e.currentTarget.style,
-                        styles.playerItemHover
-                      )
-                    }
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.padding = "12px 0";
-                    }}
-                  >
-                    <div style={styles.playerInfo}>
-                      <div style={styles.playerAvatar}>
-                        {player.jerseyNumber || "?"}
-                      </div>
-                      <div style={styles.playerDetails}>
-                        <div style={styles.playerName}>
-                          {player.firstName} {player.lastName}
-                        </div>
-                        <div style={styles.playerMeta}>
-                          {player.position} •{" "}
-                          {player.nationality || "Non spécifiée"}
-                        </div>
-                      </div>
+      {/* Métriques principales */}
+      <div style={styles.metricsGrid}>
+        <div style={styles.metricCard}>
+          <div style={styles.metricIcon}>
+            <Trophy size={24} />
+          </div>
+          <div style={styles.metricContent}>
+            <div style={styles.metricValue}>{stats?.points || 0}</div>
+            <div style={styles.metricLabel}>Points</div>
+            <div style={styles.metricSubtext}>
+              Classement: {stats?.position || "N/A"}
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.metricCard}>
+          <div style={styles.metricIcon}>
+            <Target size={24} />
+          </div>
+          <div style={styles.metricContent}>
+            <div style={styles.metricValue}>{stats?.goals || 0}</div>
+            <div style={styles.metricLabel}>Buts marqués</div>
+            <div style={styles.metricSubtext}>
+              Encaissés: {stats?.goalsAgainst || 0}
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.metricCard}>
+          <div style={styles.metricIcon}>
+            <Users size={24} />
+          </div>
+          <div style={styles.metricContent}>
+            <div style={styles.metricValue}>{players.length}</div>
+            <div style={styles.metricLabel}>Joueurs</div>
+            <div style={styles.metricSubtext}>
+              Actifs: {players.filter((p) => p.status === "active").length}
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.metricCard}>
+          <div style={styles.metricIcon}>
+            <TrendingUp size={24} />
+          </div>
+          <div style={styles.metricContent}>
+            <div style={styles.metricValue}>
+              {stats?.wins || 0}/{stats?.played || 0}
+            </div>
+            <div style={styles.metricLabel}>Victoires</div>
+            <div style={styles.metricSubtext}>
+              {stats?.played
+                ? Math.round((stats.wins / stats.played) * 100)
+                : 0}
+              %
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={styles.dashboardGrid}>
+        {/* Matchs récents */}
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>
+            <Calendar size={20} />
+            Derniers Résultats
+          </h2>
+          <div style={styles.matchesList}>
+            {recentMatches.length > 0 ? (
+              recentMatches.map((match) => {
+                const result = getMatchResult(match);
+                const isHome = match.homeTeam.id === user.teamId;
+                const opponent = isHome ? match.awayTeam : match.homeTeam;
+
+                return (
+                  <div key={match.id} style={styles.matchItem}>
+                    <div style={styles.matchDate}>
+                      {new Date(match.startAt).toLocaleDateString("fr-FR")}
+                    </div>
+                    <div style={styles.matchTeams}>
+                      <span>
+                        {isHome ? "vs" : "@"} {opponent.name}
+                      </span>
+                    </div>
+                    <div style={styles.matchScore}>
+                      {match.homeScore} - {match.awayScore}
                     </div>
                     <div
                       style={{
-                        ...styles.statusBadge,
-                        backgroundColor: getStatusColor(player.status) + "20",
-                        color: getStatusColor(player.status),
+                        ...styles.matchResult,
+                        ...getResultStyle(result),
                       }}
                     >
-                      {getStatusLabel(player.status)}
+                      {result}
                     </div>
                   </div>
-                ))}
-
-                {players.length > 8 && (
-                  <div style={{ textAlign: "center", marginTop: "16px" }}>
-                    <button
-                      style={{ ...styles.button, ...styles.buttonSecondary }}
-                      onClick={() => navigateTo("/manager/players")}
-                    >
-                      Voir tous les joueurs ({players.length})
-                    </button>
-                  </div>
-                )}
-              </>
+                );
+              })
+            ) : (
+              <div style={styles.emptyState}>
+                <p>Aucun match récent</p>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Sidebar avec matchs et actions rapides */}
-        <div>
-          {/* Prochains matchs */}
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>Prochains Matchs</h3>
-              <Calendar size={20} color="#64748b" />
-            </div>
+        {/* Prochains matchs */}
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>
+            <Clock size={20} />
+            Prochains Matchs
+          </h2>
+          <div style={styles.upcomingList}>
+            {upcomingMatches.length > 0 ? (
+              upcomingMatches.map((match) => {
+                const isHome = match.homeTeam.id === user.teamId;
+                const opponent = isHome ? match.awayTeam : match.homeTeam;
 
-            {matches.length === 0 ? (
-              <div style={styles.emptyState}>
-                <Calendar size={32} style={styles.emptyIcon} />
-                <p style={{ fontSize: "14px", margin: 0 }}>
-                  Aucun match programmé
-                </p>
-              </div>
+                return (
+                  <div key={match.id} style={styles.upcomingMatch}>
+                    <div style={styles.upcomingDate}>
+                      <div>
+                        {new Date(match.startAt).toLocaleDateString("fr-FR")}
+                      </div>
+                      <div style={styles.upcomingTime}>
+                        {new Date(match.startAt).toLocaleTimeString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+                    <div style={styles.upcomingOpponent}>
+                      <span>{isHome ? "vs" : "@"}</span>
+                      <span style={styles.opponentName}>{opponent.name}</span>
+                    </div>
+                    <div style={styles.upcomingVenue}>
+                      {isHome
+                        ? team?.stadium || "Domicile"
+                        : opponent.stadium || "Extérieur"}
+                    </div>
+                  </div>
+                );
+              })
             ) : (
-              matches.map((match) => (
-                <div
-                  key={match.id}
-                  style={styles.matchItem}
-                  onMouseEnter={(e) =>
-                    Object.assign(e.currentTarget.style, styles.matchItemHover)
-                  }
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#e2e8f0";
-                    e.currentTarget.style.backgroundColor = "transparent";
-                  }}
-                >
-                  <div style={styles.matchTeams}>
-                    {match.homeTeam?.name || "Équipe A"} vs{" "}
-                    {match.awayTeam?.name || "Équipe B"}
-                  </div>
-                  <div style={styles.matchDate}>
-                    {new Date(match.startAt).toLocaleDateString("fr-FR", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                </div>
-              ))
+              <div style={styles.emptyState}>
+                <p>Aucun match programmé</p>
+              </div>
             )}
           </div>
+        </div>
 
-          {/* Actions rapides */}
-          <div style={{ ...styles.card, marginTop: "16px" }}>
-            <h3 style={styles.cardTitle}>Actions Rapides</h3>
-            <div style={styles.quickActions}>
-              <div
-                style={styles.quickActionButton}
-                onClick={() => navigateTo("/manager/players")}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = "#f1f5f9";
-                  e.target.style.borderColor = "#3b82f6";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = "#f8fafc";
-                  e.target.style.borderColor = "#e2e8f0";
-                }}
-              >
-                <Users size={16} />
-                Gérer l'effectif
+        {/* Top joueurs */}
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>
+            <Users size={20} />
+            Effectif
+          </h2>
+          <div style={styles.playersList}>
+            {players.slice(0, 8).map((player) => (
+              <div key={player.id} style={styles.playerItem}>
+                <div style={styles.playerNumber}>
+                  {player.jerseyNumber || "#"}
+                </div>
+                <div style={styles.playerInfo}>
+                  <div style={styles.playerName}>{player.name}</div>
+                  <div style={styles.playerPosition}>{player.position}</div>
+                </div>
+                <div style={styles.playerStats}>
+                  <span>{player.goals || 0} buts</span>
+                </div>
               </div>
-
-              <div
-                style={styles.quickActionButton}
-                onClick={() => navigateTo("/manager/team/edit")}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = "#f1f5f9";
-                  e.target.style.borderColor = "#3b82f6";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = "#f8fafc";
-                  e.target.style.borderColor = "#e2e8f0";
-                }}
-              >
-                <Edit3 size={16} />
-                Modifier les infos de l'équipe
+            ))}
+            {players.length === 0 && (
+              <div style={styles.emptyState}>
+                <p>Aucun joueur enregistré</p>
               </div>
-
-              <div
-                style={styles.quickActionButton}
-                onClick={() => navigateTo("/manager/stats")}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = "#f1f5f9";
-                  e.target.style.borderColor = "#3b82f6";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = "#f8fafc";
-                  e.target.style.borderColor = "#e2e8f0";
-                }}
-              >
-                <BarChart3 size={16} />
-                Voir les statistiques
-              </div>
-
-              <div
-                style={styles.quickActionButton}
-                onClick={() => navigateTo("/manager/matches")}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = "#f1f5f9";
-                  e.target.style.borderColor = "#3b82f6";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = "#f8fafc";
-                  e.target.style.borderColor = "#e2e8f0";
-                }}
-              >
-                <Trophy size={16} />
-                Historique des matchs
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default ManagerDashboard;

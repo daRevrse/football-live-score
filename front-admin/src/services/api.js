@@ -272,4 +272,114 @@ export const updatePlayerStatus = async (id, statusData) =>
 export const updateTeamInfo = async (teamId, teamData) =>
   await api.put(`/teams/${teamId}`, teamData);
 
+// Fonction pour obtenir les matchs avec filtres avancés
+export const getMatchesWithFilters = async (filters = {}) => {
+  const params = new URLSearchParams();
+
+  if (filters.teamId) params.append("teamId", filters.teamId);
+  if (filters.reporterId) params.append("reporterId", filters.reporterId);
+  if (filters.status && Array.isArray(filters.status)) {
+    filters.status.forEach((s) => params.append("status", s));
+  } else if (filters.status) {
+    params.append("status", filters.status);
+  }
+  if (filters.startDate) params.append("startDate", filters.startDate);
+  if (filters.endDate) params.append("endDate", filters.endDate);
+  if (filters.limit) params.append("limit", filters.limit);
+
+  return await api.get(`/matches?${params.toString()}`);
+};
+
+// Fonction pour obtenir les statistiques d'équipe avec cache
+let statsCache = new Map();
+export const getTeamStatsWithCache = async (teamId) => {
+  const cacheKey = `stats-${teamId}`;
+  const cached = statsCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+    // Cache 5 minutes
+    return { data: cached.data };
+  }
+
+  try {
+    const response = await getTeamStats(teamId);
+    statsCache.set(cacheKey, {
+      data: response.data,
+      timestamp: Date.now(),
+    });
+    return response;
+  } catch (error) {
+    // Retourner des stats par défaut si erreur
+    const defaultStats = {
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goals: 0,
+      goalsAgainst: 0,
+      goalDifference: 0,
+      points: 0,
+      position: null,
+    };
+    return { data: defaultStats };
+  }
+};
+
+// Fonction pour obtenir les événements avec pagination
+export const getMatchEventsWithPagination = async (
+  matchId,
+  page = 1,
+  limit = 50
+) => {
+  try {
+    const response = await api.get(`/matches/${matchId}/events`, {
+      params: { page, limit, sort: "minute,desc" },
+    });
+    return response;
+  } catch (error) {
+    console.error("Erreur lors du chargement des événements:", error);
+    return { data: [] };
+  }
+};
+
+// Fonction pour obtenir les logos d'équipes
+export const getTeamLogos = async () => {
+  try {
+    const response = await api.get("/upload/logos");
+    return response;
+  } catch (error) {
+    console.error("Erreur lors du chargement des logos:", error);
+    return { data: [] };
+  }
+};
+
+// Fonction pour valider et nettoyer les données d'événement
+export const validateEventData = (eventData) => {
+  const errors = [];
+
+  if (!eventData.type) errors.push("Type d'événement requis");
+  if (!eventData.teamId) errors.push("Équipe requise");
+  if (!eventData.minute || eventData.minute < 0 || eventData.minute > 120) {
+    errors.push("Minute invalide (0-120)");
+  }
+
+  if (
+    ["goal", "yellow_card", "red_card"].includes(eventData.type) &&
+    !eventData.playerName
+  ) {
+    errors.push("Nom du joueur requis pour ce type d'événement");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    cleanData: {
+      ...eventData,
+      teamId: parseInt(eventData.teamId),
+      minute: parseInt(eventData.minute),
+      playerId: eventData.playerId ? parseInt(eventData.playerId) : null,
+    },
+  };
+};
+
 export default api;
