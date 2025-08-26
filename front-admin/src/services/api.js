@@ -240,4 +240,36 @@ export const getLeaderboard = async () => {
     });
 };
 
+// Ajout à faire dans front-admin/src/services/api.js
+
+// ==================== PLAYERS API ====================
+export const getPlayers = async (params = {}) =>
+  await api.get("/players", { params });
+
+export const getTeamPlayers = async (teamId, params = {}) =>
+  await api.get(`/players/team/${teamId}`, { params });
+
+export const getPlayer = async (id) => await api.get(`/players/${id}`);
+
+export const createPlayer = async (playerData) =>
+  await api.post("/players", playerData);
+
+export const updatePlayer = async (id, playerData) =>
+  await api.put(`/players/${id}`, playerData);
+
+export const deletePlayer = async (id) => await api.delete(`/players/${id}`);
+
+export const updatePlayerStatus = async (id, statusData) =>
+  await api.put(`/players/${id}/status`, statusData);
+
+// ==================== ENHANCED TEAM API ====================
+// export const getTeamStats = async (teamId) =>
+//   await api.get(`/teams/${teamId}/stats`);
+
+// export const getTeamMatches = async (teamId, params = {}) =>
+//   await api.get(`/teams/${teamId}/matches`, { params });
+
+export const updateTeamInfo = async (teamId, teamData) =>
+  await api.put(`/teams/${teamId}`, teamData);
+
 export default api;

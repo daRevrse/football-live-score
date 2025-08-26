@@ -1,7 +1,9 @@
 import React from "react";
 import { Trash2, Users, BarChart2 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function TeamItem({ team, onDelete, onSelect, isSelected }) {
+  const { user } = useAuth();
   // Styles CSS intégrés
   const styles = {
     container: {
@@ -124,22 +126,24 @@ export default function TeamItem({ team, onDelete, onSelect, isSelected }) {
           <Users size={18} />
           {team.shortName}
         </div>
-        <button
-          style={styles.deleteButton}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(team.id);
-          }}
-          onMouseEnter={(e) =>
-            Object.assign(e.target.style, styles.deleteButtonHover)
-          }
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = "transparent";
-          }}
-        >
-          <Trash2 size={16} />
-          Supprimer
-        </button>
+        {user?.role === "Admin" && (
+          <button
+            style={styles.deleteButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(team.id);
+            }}
+            onMouseEnter={(e) =>
+              Object.assign(e.target.style, styles.deleteButtonHover)
+            }
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = "transparent";
+            }}
+          >
+            <Trash2 size={16} />
+            Supprimer
+          </button>
+        )}
       </div>
 
       <div style={styles.body}>

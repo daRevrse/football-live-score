@@ -1,3 +1,4 @@
+// backend/routes/authRoutes.js
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
@@ -83,15 +84,15 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // Hasher le mot de passe
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    // ATTENTION: Ne pas hasher ici car le modèle le fait déjà dans beforeCreate
     // Créer l'utilisateur
     const user = await db.User.create({
       username: username.trim(),
       email: email.trim().toLowerCase(),
-      password: hashedPassword,
-      role: ["Admin", "Reporter", "User"].includes(role) ? role : "User",
+      password: password, // Le modèle se charge du hashage
+      role: ["Admin", "Reporter", "User", "Manager"].includes(role)
+        ? role
+        : "User",
     });
 
     // Générer le token JWT
@@ -113,6 +114,7 @@ router.post("/register", async (req, res) => {
         updatedAt: user.updatedAt,
       },
       token,
+      role: user.role,
     });
   } catch (error) {
     console.error("Registration error:", error);
@@ -151,8 +153,11 @@ router.post("/login", async (req, res) => {
     }
 
     // Trouver l'utilisateur AVEC le mot de passe
-    const user = await db.User.scope("withPassword").findOne({
+    const user = await db.User.findOne({
       where: { email: email.trim().toLowerCase() },
+      attributes: {
+        include: ["password"], // Inclure explicitement le password
+      },
     });
 
     if (!user) {
@@ -162,13 +167,19 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Vérifier le mot de passe
-    const validPassword = await bcrypt.compare(password, user.password);
+    // Vérifier le mot de passe avec la méthode du modèle
+    const validPassword = await user.comparePassword(password);
+
     if (!validPassword) {
       return res.status(401).json({
         error: "Authentication failed",
         details: ["Invalid email or password"],
       });
+    }
+
+    // Mettre à jour la dernière connexion
+    if (user.lastLogin !== undefined) {
+      await user.update({ lastLogin: new Date() });
     }
 
     // Générer le token JWT
@@ -185,6 +196,7 @@ router.post("/login", async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
+        teamId: user.teamId || null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
@@ -208,7 +220,16 @@ router.get("/me", async (req, res) => {
 
     // Vérifier et décoder le token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await db.User.findByPk(decoded.id);
+    const user = await db.User.findByPk(decoded.id, {
+      include: [
+        {
+          model: db.Team,
+          as: "managedTeam",
+          attributes: ["id", "name", "slug"],
+          required: false,
+        },
+      ],
+    });
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -219,6 +240,10 @@ router.get("/me", async (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
+      teamId: user.teamId || null,
+      managedTeam: user.managedTeam || null,
+      status: user.status || "active",
+      temporaryPassword: user.temporaryPassword || false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     });

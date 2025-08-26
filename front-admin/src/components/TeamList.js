@@ -4,6 +4,7 @@ import socket from "../services/socket";
 import TeamForm from "./TeamForm";
 import TeamItem from "./TeamItem";
 import { Loader2, RefreshCw, AlertCircle, Plus, Users, X } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function TeamList() {
   const [teams, setTeams] = useState([]);
@@ -12,6 +13,7 @@ export default function TeamList() {
   const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [showTeamFormModal, setShowTeamFormModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
     loadTeams();
@@ -259,20 +261,22 @@ export default function TeamList() {
             )}
             Actualiser
           </button>
-          <button
-            style={{ ...styles.button, ...styles.buttonPrimary }}
-            onClick={() => setShowTeamFormModal(true)}
-            onMouseEnter={(e) =>
-              Object.assign(e.target.style, styles.buttonHover)
-            }
-            onMouseLeave={(e) => {
-              e.target.style.transform = "none";
-              e.target.style.boxShadow = "none";
-            }}
-          >
-            <Plus size={16} />
-            Nouvelle équipe
-          </button>
+          {user?.role === "Admin" && (
+            <button
+              style={{ ...styles.button, ...styles.buttonPrimary }}
+              onClick={() => setShowTeamFormModal(true)}
+              onMouseEnter={(e) =>
+                Object.assign(e.target.style, styles.buttonHover)
+              }
+              onMouseLeave={(e) => {
+                e.target.style.transform = "none";
+                e.target.style.boxShadow = "none";
+              }}
+            >
+              <Plus size={16} />
+              Nouvelle équipe
+            </button>
+          )}
         </div>
       </div>
 

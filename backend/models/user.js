@@ -1,21 +1,17 @@
 // backend/models/user.js
+const bcrypt = require("bcryptjs");
+
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define(
     "User",
     {
-      id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-      },
       username: {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
         validate: {
           notEmpty: true,
-          len: [3, 30],
-          is: /^[a-zA-Z0-9_]+$/, // Alphanumeric + underscore
+          len: [3, 50],
         },
       },
       email: {
@@ -23,9 +19,8 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
         validate: {
-          isEmail: true,
           notEmpty: true,
-          len: [5, 255],
+          isEmail: true,
         },
       },
       password: {
@@ -33,55 +28,125 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         validate: {
           notEmpty: true,
-          len: [8, 255], // ✅ Changé de [60,60] à [8,255] pour plus de flexibilité
+          len: [6, 255],
         },
       },
       role: {
-        type: DataTypes.ENUM("Admin", "Reporter", "User"),
-        allowNull: false,
+        type: DataTypes.ENUM("Admin", "Manager", "Reporter", "User"),
         defaultValue: "User",
-        validate: {
-          isIn: [["Admin", "Reporter", "User"]],
+        allowNull: false,
+      },
+      // Nouveau : ID de l'équipe assignée (pour Manager/Reporter)
+      teamId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "teams",
+          key: "id",
         },
+      },
+      // Nouveau : Statut du compte
+      status: {
+        type: DataTypes.ENUM("active", "inactive", "pending"),
+        defaultValue: "active",
+        allowNull: false,
+      },
+      // Nouveau : Mot de passe temporaire
+      temporaryPassword: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      // Nouveau : Token de réinitialisation
+      resetToken: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      // Nouveau : Expiration du token
+      resetTokenExpiry: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      // Données personnelles
+      firstName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      lastName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      phone: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       lastLogin: {
         type: DataTypes.DATE,
         allowNull: true,
       },
-      isActive: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true,
-      },
     },
     {
       tableName: "users",
       indexes: [
-        { fields: ["username"] },
         { fields: ["email"] },
+        { fields: ["username"] },
+        { fields: ["teamId"] },
         { fields: ["role"] },
       ],
-      defaultScope: {
-        attributes: { exclude: ["password"] }, // Exclut le password par défaut
-      },
-      scopes: {
-        withPassword: {
-          attributes: {}, // Inclut tous les attributs y compris password
+      hooks: {
+        beforeCreate: async (user) => {
+          if (user.password) {
+            user.password = await bcrypt.hash(user.password, 10);
+          }
+        },
+        beforeUpdate: async (user) => {
+          if (user.changed("password")) {
+            user.password = await bcrypt.hash(user.password, 10);
+          }
         },
       },
     }
   );
 
   User.associate = (models) => {
-    // Ajoutez ici les associations si nécessaire
-    // Par exemple, si un utilisateur peut créer des matchs :
-    // User.hasMany(models.Match, { as: "createdMatches", foreignKey: "createdById" });
+    // Relation avec Team (Manager/Reporter appartiennent à une équipe)
+    User.belongsTo(models.Team, {
+      as: "managedTeam",
+      foreignKey: "teamId",
+      constraints: false,
+    });
+
+    // Relation pour les matchs assignés aux reporters
+    User.hasMany(models.Match, {
+      as: "assignedMatches",
+      foreignKey: "reporterId",
+    });
   };
 
-  // Méthodes d'instance (optionnel)
-  User.prototype.toJSON = function () {
-    const values = Object.assign({}, this.get());
-    delete values.password; // Garantit que le password n'est jamais envoyé au client
-    return values;
+  // Méthodes d'instance
+  User.prototype.comparePassword = async function (password) {
+    return bcrypt.compare(password, this.password);
+  };
+
+  User.prototype.isManager = function () {
+    return this.role === "Manager";
+  };
+
+  User.prototype.isReporter = function () {
+    return this.role === "Reporter";
+  };
+
+  User.prototype.canManageTeam = function (teamId) {
+    return (
+      this.role === "Admin" ||
+      (this.role === "Manager" && this.teamId === teamId)
+    );
+  };
+
+  User.prototype.canReportForTeam = function (teamId) {
+    return (
+      this.role === "Admin" ||
+      (this.role === "Reporter" && this.teamId === teamId)
+    );
   };
 
   return User;
