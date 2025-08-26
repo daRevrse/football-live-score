@@ -45,6 +45,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         defaultValue: 0,
       },
+      reporterId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "users",
+          key: "id",
+        },
+      },
     },
     {
       tableName: "matches",
@@ -54,6 +62,7 @@ module.exports = (sequelize, DataTypes) => {
   Match.associate = (models) => {
     Match.belongsTo(models.Team, { as: "homeTeam", foreignKey: "homeTeamId" });
     Match.belongsTo(models.Team, { as: "awayTeam", foreignKey: "awayTeamId" });
+    Match.belongsTo(models.User, { as: "reporter", foreignKey: "reporterId" });
     Match.hasMany(models.Event, { as: "events", foreignKey: "matchId" });
   };
 

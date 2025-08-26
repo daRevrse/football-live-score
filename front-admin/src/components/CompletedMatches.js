@@ -3,11 +3,13 @@ import { CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { getCompletedMatches } from "../services/api";
 import PublicMatchCard from "./PublicMatchCard";
 import { styles } from "./PublicMatchList";
+import PublicMatchDetail from "./PublicMatchDetail";
 
 export default function CompletedMatches() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   useEffect(() => {
     const fetchCompletedMatches = async () => {
@@ -86,8 +88,29 @@ export default function CompletedMatches() {
           {matches
             .sort((a, b) => new Date(b.startAt) - new Date(a.startAt))
             .map((match) => (
-              <PublicMatchCard key={match.id} match={match} />
+              <PublicMatchCard
+                key={match.id}
+                match={match}
+                onClick={() => setSelectedMatch(match)}
+              />
             ))}
+        </div>
+      )}
+      {selectedMatch && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <button
+              style={styles.closeButton}
+              onClick={() => setSelectedMatch(null)}
+            >
+              &times;
+            </button>
+            <PublicMatchDetail
+              match={selectedMatch}
+              // teams={teams}
+              onClose={() => setSelectedMatch(null)}
+            />
+          </div>
         </div>
       )}
     </div>

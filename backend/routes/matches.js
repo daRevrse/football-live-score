@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../models");
+const { authorizeMatchAccess } = require("../middleware/matchAuth"); // Nouveau middleware
+const { authenticate, authorize } = require("../middleware/auth");
 
 // GET all matches
 router.get("/", async (req, res) => {
@@ -143,71 +145,83 @@ router.get("/:id", async (req, res) => {
 });
 
 // PUT update match
-router.put("/:id", async (req, res) => {
-  try {
-    const match = await db.Match.findByPk(req.params.id);
-    if (!match) return res.status(404).json({ error: "Match not found" });
+router.put(
+  "/:id",
+  authenticate,
+  authorize(["Admin", "Reporter"]),
+  authorizeMatchAccess,
+  async (req, res) => {
+    try {
+      const match = await db.Match.findByPk(req.params.id);
+      if (!match) return res.status(404).json({ error: "Match not found" });
 
-    const { homeScore, awayScore, status, startAt } = req.body;
+      const { homeScore, awayScore, status, startAt } = req.body;
 
-    // Mise à jour des champs modifiables
-    const updateData = {};
-    if (homeScore !== undefined) updateData.homeScore = homeScore;
-    if (awayScore !== undefined) updateData.awayScore = awayScore;
-    if (status !== undefined) updateData.status = status;
-    if (startAt !== undefined) updateData.startAt = startAt;
+      // Mise à jour des champs modifiables
+      const updateData = {};
+      if (homeScore !== undefined) updateData.homeScore = homeScore;
+      if (awayScore !== undefined) updateData.awayScore = awayScore;
+      if (status !== undefined) updateData.status = status;
+      if (startAt !== undefined) updateData.startAt = startAt;
 
-    await match.update(updateData);
+      await match.update(updateData);
 
-    // Récupérer le match mis à jour avec les relations
-    const updatedMatch = await db.Match.findByPk(match.id, {
-      include: [
-        { model: db.Team, as: "homeTeam" },
-        { model: db.Team, as: "awayTeam" },
-        { model: db.Event, as: "events" },
-      ],
-    });
+      // Récupérer le match mis à jour avec les relations
+      const updatedMatch = await db.Match.findByPk(match.id, {
+        include: [
+          { model: db.Team, as: "homeTeam" },
+          { model: db.Team, as: "awayTeam" },
+          { model: db.Event, as: "events" },
+        ],
+      });
 
-    // Émettre via Socket.IO si disponible
-    req.io.to(`match:${match.id}`).emit("match_updated", updatedMatch);
-    req.io.emit("match_updated", updatedMatch);
+      // Émettre via Socket.IO si disponible
+      req.io.to(`match:${match.id}`).emit("match_updated", updatedMatch);
+      req.io.emit("match_updated", updatedMatch);
 
-    res.json(updatedMatch);
-  } catch (error) {
-    console.error("Error updating match:", error);
-    res.status(500).json({ error: "Internal server error" });
+      res.json(updatedMatch);
+    } catch (error) {
+      console.error("Error updating match:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
-});
+);
 
 // PUT /matches/:id/score
 // body: { homeScore, awayScore }
-router.put("/:id/score", async (req, res) => {
-  try {
-    const { homeScore, awayScore } = req.body;
-    const match = await db.Match.findByPk(req.params.id);
-    if (!match) return res.status(404).json({ error: "Match not found" });
+router.put(
+  "/:id/score",
+  authenticate,
+  authorize(["Admin", "Reporter"]),
+  authorizeMatchAccess,
+  async (req, res) => {
+    try {
+      const { homeScore, awayScore } = req.body;
+      const match = await db.Match.findByPk(req.params.id);
+      if (!match) return res.status(404).json({ error: "Match not found" });
 
-    match.homeScore = Number(homeScore) ?? match.homeScore;
-    match.awayScore = Number(awayScore) ?? match.awayScore;
-    await match.save();
+      match.homeScore = Number(homeScore) ?? match.homeScore;
+      match.awayScore = Number(awayScore) ?? match.awayScore;
+      await match.save();
 
-    const updated = await db.Match.findByPk(match.id, {
-      include: [
-        { model: db.Team, as: "homeTeam" },
-        { model: db.Team, as: "awayTeam" },
-      ],
-    });
+      const updated = await db.Match.findByPk(match.id, {
+        include: [
+          { model: db.Team, as: "homeTeam" },
+          { model: db.Team, as: "awayTeam" },
+        ],
+      });
 
-    // emit to room and global listeners
-    req.io.to(`match:${match.id}`).emit("match_updated", updated);
-    req.io.emit("match_updated", updated);
+      // emit to room and global listeners
+      req.io.to(`match:${match.id}`).emit("match_updated", updated);
+      req.io.emit("match_updated", updated);
 
-    res.json(updated);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+      res.json(updated);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
   }
-});
+);
 
 // DELETE match
 router.delete("/:id", async (req, res) => {
@@ -231,66 +245,74 @@ router.delete("/:id", async (req, res) => {
 });
 
 // POST add event to match
-router.post("/:id/events", async (req, res) => {
-  try {
-    const { type, teamId, player, minute } = req.body;
+router.post(
+  "/:id/events",
+  authenticate,
+  authorize(["Admin", "Reporter"]),
+  authorizeMatchAccess,
+  async (req, res) => {
+    try {
+      const { type, teamId, player, minute } = req.body;
 
-    const match = await db.Match.findByPk(req.params.id);
-    if (!match) return res.status(404).json({ error: "Match not found" });
+      const match = await db.Match.findByPk(req.params.id);
+      if (!match) return res.status(404).json({ error: "Match not found" });
 
-    // Validation
-    if (!type || !teamId || minute === undefined) {
-      return res
-        .status(400)
-        .json({ error: "type, teamId, and minute are required" });
+      // Validation
+      if (!type || !teamId || minute === undefined) {
+        return res
+          .status(400)
+          .json({ error: "type, teamId, and minute are required" });
+      }
+
+      // Vérifier que l'équipe appartient au match
+      if (teamId !== match.homeTeamId && teamId !== match.awayTeamId) {
+        return res
+          .status(400)
+          .json({ error: "Team is not part of this match" });
+      }
+
+      const event = await db.Event.create({
+        matchId: match.id,
+        type,
+        teamId,
+        player,
+        minute,
+      });
+
+      if (type === "home_goal") {
+        match.homeScore += 1;
+        await match.save();
+      } else if (type === "away_goal") {
+        match.awayScore += 1;
+        await match.save();
+      }
+
+      const updatedMatch = await db.Match.findByPk(match.id, {
+        include: [
+          { model: db.Team, as: "homeTeam" },
+          { model: db.Team, as: "awayTeam" },
+          {
+            model: db.Event,
+            as: "events",
+            include: [{ model: db.Team, as: "team" }],
+          },
+        ],
+      });
+
+      req.io
+        .to(`match:${match.id}`)
+        .emit("match:event", { match: updatedMatch, event });
+      req.io.emit("match:event", { match: updatedMatch, event }); // global
+      req.io.to(`match:${match.id}`).emit("match_updated", updatedMatch);
+      req.io.emit("match_updated", updatedMatch);
+
+      res.status(201).json({ event, match: updatedMatch });
+    } catch (error) {
+      console.error("Error creating event:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
-
-    // Vérifier que l'équipe appartient au match
-    if (teamId !== match.homeTeamId && teamId !== match.awayTeamId) {
-      return res.status(400).json({ error: "Team is not part of this match" });
-    }
-
-    const event = await db.Event.create({
-      matchId: match.id,
-      type,
-      teamId,
-      player,
-      minute,
-    });
-
-    if (type === "home_goal") {
-      match.homeScore += 1;
-      await match.save();
-    } else if (type === "away_goal") {
-      match.awayScore += 1;
-      await match.save();
-    }
-
-    const updatedMatch = await db.Match.findByPk(match.id, {
-      include: [
-        { model: db.Team, as: "homeTeam" },
-        { model: db.Team, as: "awayTeam" },
-        {
-          model: db.Event,
-          as: "events",
-          include: [{ model: db.Team, as: "team" }],
-        },
-      ],
-    });
-
-    req.io
-      .to(`match:${match.id}`)
-      .emit("match:event", { match: updatedMatch, event });
-    req.io.emit("match:event", { match: updatedMatch, event }); // global
-    req.io.to(`match:${match.id}`).emit("match_updated", updatedMatch);
-    req.io.emit("match_updated", updatedMatch);
-
-    res.status(201).json({ event, match: updatedMatch });
-  } catch (error) {
-    console.error("Error creating event:", error);
-    res.status(500).json({ error: "Internal server error" });
   }
-});
+);
 
 // GET events for a match
 router.get("/:id/events", async (req, res) => {
@@ -311,56 +333,87 @@ router.get("/:id/events", async (req, res) => {
   }
 });
 
-// Démarrer un match
-router.post("/:id/start", async (req, res) => {
-  try {
-    const result = await req.app.get("timerService").startMatch(req.params.id);
+// PUT /matches/:id/start - Démarre un match (statut + timer)
+router.put(
+  "/:id/start",
+  authenticate,
+  authorize(["Admin", "Reporter"]),
+  authorizeMatchAccess,
+  async (req, res) => {
+    try {
+      const match = await db.Match.findByPk(req.params.id);
+      if (!match) {
+        return res.status(404).json({ error: "Match not found" });
+      }
 
-    if (result.success) {
-      res.json({ message: result.message });
-    } else {
-      res.status(400).json({ error: result.error });
+      // Vérification du statut
+      if (match.status !== "scheduled") {
+        return res.status(400).json({
+          error: "Match can only be started if scheduled",
+        });
+      }
+
+      // Démarrage du timer
+      const timerResult = await req.app
+        .get("timerService")
+        .startMatch(req.params.id);
+      if (!timerResult.success) {
+        return res.status(400).json({ error: timerResult.error });
+      }
+
+      // Mise à jour du statut du match
+      await match.update({
+        status: "live",
+        startAt: new Date(),
+      });
+
+      // Récupération du match mis à jour avec les relations
+      const updatedMatch = await db.Match.findByPk(match.id, {
+        include: [
+          { model: db.Team, as: "homeTeam" },
+          { model: db.Team, as: "awayTeam" },
+          { model: db.Event, as: "events" },
+        ],
+      });
+
+      // Émissions Socket.io
+      if (req.io) {
+        // Émission spécifique pour le démarrage
+        req.io.to(`match:${match.id}`).emit("match:started", updatedMatch);
+
+        // Émission générale de mise à jour
+        req.io.to(`match:${match.id}`).emit("match_updated", updatedMatch);
+        req.io.emit("match_updated", updatedMatch);
+
+        // Émission pour le timer
+        req.io.to(`match:${match.id}`).emit("timer:started", {
+          matchId: match.id,
+          startTime: new Date().toISOString(),
+        });
+      }
+
+      res.json({
+        message: timerResult.message,
+        match: updatedMatch,
+      });
+    } catch (error) {
+      console.error("Error starting match:", error);
+
+      // Tentative de rollback en cas d'erreur après le démarrage du timer
+      try {
+        await req.app.get("timerService").stopMatch(req.params.id);
+      } catch (rollbackError) {
+        console.error("Error during rollback:", rollbackError);
+      }
+
+      res.status(500).json({
+        error: "Internal server error",
+        details:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
     }
-  } catch (error) {
-    res.status(500).json({ error: "Erreur serveur" });
   }
-});
-
-// PUT start match (change status to 'live')
-router.put("/:id/start", async (req, res) => {
-  try {
-    const match = await db.Match.findByPk(req.params.id);
-    if (!match) return res.status(404).json({ error: "Match not found" });
-
-    if (match.status !== "scheduled") {
-      return res
-        .status(400)
-        .json({ error: "Match can only be started if scheduled" });
-    }
-
-    await match.update({ status: "live", startAt: new Date() });
-
-    const updatedMatch = await db.Match.findByPk(match.id, {
-      include: [
-        { model: db.Team, as: "homeTeam" },
-        { model: db.Team, as: "awayTeam" },
-        { model: db.Event, as: "events" },
-      ],
-    });
-
-    if (req.io) {
-      req.io.to(`match:${match.id}`).emit("match:started", updatedMatch);
-    }
-
-    req.io.to(`match:${match.id}`).emit("match_updated", updatedMatch);
-    req.io.emit("match_updated", updatedMatch);
-
-    res.json(updatedMatch);
-  } catch (error) {
-    console.error("Error starting match:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+);
 
 // Mettre en pause
 router.post("/:id/pause", async (req, res) => {
@@ -506,5 +559,34 @@ router.get("/:id/timer", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
+// GET /matches/assigned - Récupère les matches assignés au reporter connecté
+router.get(
+  "/assigned",
+  authenticate,
+  authorize(["Reporter"]),
+  async (req, res) => {
+    try {
+      const matches = await db.Match.findAll({
+        where: { reporterId: req.user.id },
+        include: [
+          { model: db.Team, as: "homeTeam" },
+          { model: db.Team, as: "awayTeam" },
+          {
+            model: db.Event,
+            as: "events",
+            include: [{ model: db.Team, as: "team" }],
+          },
+        ],
+        order: [["startAt", "ASC"]],
+      });
+
+      res.json(matches);
+    } catch (error) {
+      console.error("Error fetching assigned matches:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
 
 module.exports = router;

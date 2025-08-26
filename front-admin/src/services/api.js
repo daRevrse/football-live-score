@@ -50,6 +50,21 @@ export const updateUser = async (id, userData) =>
   await api.put(`/admin/users/${id}`, userData);
 export const deleteUser = async (id) => await api.delete(`/admin/users/${id}`);
 
+// Récupérer tous les reporters
+export const getReporters = async () => {
+  return await api.get("/admin/reporters");
+};
+
+// Assigner un reporter à un match
+export const assignReporterToMatch = async (matchId, reporterId) => {
+  return await api.put(`/admin/matches/${matchId}/assign`, { reporterId });
+};
+
+// Récupérer les matches assignés à l'utilisateur courant
+export const getMyAssignedMatches = async () => {
+  return await api.get("/matches/assigned");
+};
+
 // ==================== MATCHES API ====================
 export const getMatches = async (params = {}) =>
   await api.get("/matches", { params });
@@ -62,7 +77,10 @@ export const deleteMatch = async (id) => await api.delete(`/matches/${id}`);
 
 // Match status operations
 export const startMatch = async (id) => await api.put(`/matches/${id}/start`);
-export const finishMatch = async (id) => await api.put(`/matches/${id}/finish`);
+export const finishMatch = async (id) => {
+  await api.post(`/matches/${id}/end`);
+  await api.put(`/matches/${id}/finish`);
+};
 export const pauseMatch = async (id) => await api.post(`/matches/${id}/pause`);
 export const resumeMatch = async (id) =>
   await api.post(`/matches/${id}/resume`);
@@ -124,20 +142,28 @@ export const deleteLogo = async (logoUrl) =>
 export const getLogos = async () => await api.get("/upload/logo");
 
 // ==================== HELPER FUNCTIONS ====================
-// Fonctions utilitaires pour les matchs
+
 export const getLiveMatches = async () => {
-  const response = await getMatches({ status: "live" });
-  return response.data;
+  const response = await getMatches();
+  return response.data.filter(
+    (match) => match.status === "live" || match.status === "paused"
+  );
 };
 
 export const getUpcomingMatches = async () => {
-  const response = await getMatches({ status: "scheduled" });
-  return response.data;
+  const response = await getMatches();
+  return response.data
+    .filter((match) => match.status === "scheduled")
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  // tri par date si besoin
 };
 
 export const getCompletedMatches = async () => {
-  const response = await getMatches({ status: "completed" });
-  return response.data;
+  const response = await getMatches();
+  return response.data
+    .filter((match) => match.status === "finished")
+    .sort((a, b) => new Date(b.end_time) - new Date(a.end_time));
+  // du plus récent au plus ancien
 };
 
 export const getTodayMatches = async () => {

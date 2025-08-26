@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { Clock, Flag, Edit, Trash2 } from "lucide-react";
 import io from "socket.io-client";
+import AssignReporter from "./AssignReporter";
+import { useAuth } from "../context/AuthContext";
 
 // Connexion Socket.IO
 const socket = io("http://localhost:5000");
 
-const MatchCard = ({ match, onEdit, onDelete, styles }) => {
+const MatchCard = ({ match, onEdit, onDelete, styles, onAssign }) => {
   const [timerState, setTimerState] = useState({
     currentMinute: match.currentMinute || 0,
     currentSecond: match.currentSecond || 0,
     isRunning: match.status === "live",
   });
+
+  const { user } = useAuth();
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
@@ -161,6 +165,9 @@ const MatchCard = ({ match, onEdit, onDelete, styles }) => {
         </div>
       </div>
       <div style={styles.matchActions}>
+        {user?.role === "Admin" && (
+          <AssignReporter match={match} onAssign={onAssign} />
+        )}
         <button
           style={{ ...styles.actionButton, ...styles.editButton }}
           onClick={() => onEdit(match.id)}

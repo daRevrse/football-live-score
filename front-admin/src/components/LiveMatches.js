@@ -4,11 +4,13 @@ import { getLiveMatches } from "../services/api";
 import socket from "../services/socket";
 import PublicMatchCard from "./PublicMatchCard";
 import { styles } from "./PublicMatchList"; // Réutilisation des styles
+import PublicMatchDetail from "./PublicMatchDetail";
 
 export default function LiveMatches() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   useEffect(() => {
     const fetchLiveMatches = async () => {
@@ -105,8 +107,30 @@ export default function LiveMatches() {
       ) : (
         <div style={styles.grid}>
           {matches.map((match) => (
-            <PublicMatchCard key={match.id} match={match} />
+            <PublicMatchCard
+              key={match.id}
+              match={match}
+              onClick={() => setSelectedMatch(match)}
+            />
           ))}
+        </div>
+      )}
+
+      {selectedMatch && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <button
+              style={styles.closeButton}
+              onClick={() => setSelectedMatch(null)}
+            >
+              &times;
+            </button>
+            <PublicMatchDetail
+              match={selectedMatch}
+              // teams={teams}
+              onClose={() => setSelectedMatch(null)}
+            />
+          </div>
         </div>
       )}
     </div>

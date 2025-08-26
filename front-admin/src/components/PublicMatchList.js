@@ -257,7 +257,7 @@ export default function PublicMatchList() {
             </button>
             <PublicMatchDetail
               match={selectedMatch}
-              teams={teams}
+              // teams={teams}
               onClose={() => setSelectedMatch(null)}
             />
           </div>

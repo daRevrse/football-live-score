@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Lock } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Register() {
   const [username, setUsername] = useState("");
@@ -8,24 +9,27 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
-      const response = await fetch("http://localhost:5000/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, email, password }),
-      });
+      // const response = await fetch("http://localhost:5000/auth/register", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({ username, email, password }),
+      // });
 
-      const data = await response.json();
+      const result = await register({ username, email, password });
 
-      if (!response.ok) {
-        throw new Error(data.message || "Erreur d'inscription");
+      // const data = await response.json();
+
+      if (!result.success) {
+        setError(result.error);
       }
 
       navigate("/login");

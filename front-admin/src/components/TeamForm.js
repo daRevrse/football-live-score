@@ -366,15 +366,17 @@ export default function TeamForm({ onTeamCreated, onCancel }) {
 
       const response = await uploadLogo(file);
 
+      console.log("response", response);
+
       clearInterval(progressInterval);
       setUploadProgress(100);
 
       // Mettre à jour l'URL du logo
-      setUrlLogo(`${API_URL}${response.logoUrl}`);
+      setUrlLogo(`${API_URL}${response.data.logoUrl}`);
       // handleInputChange("logoUrl", `${API_URL}${response.logoUrl}`);
       setFormData((prev) => ({
         ...prev,
-        logoUrl: `${API_URL}${response.logoUrl}`,
+        logoUrl: `${API_URL}${response.data.logoUrl}`,
       }));
 
       setTimeout(() => {

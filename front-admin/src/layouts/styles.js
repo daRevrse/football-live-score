@@ -5,7 +5,7 @@ export const styles = {
     backgroundColor: "#f5f7fa",
   },
   sidebar: {
-    width: "240px",
+    width: "320px",
     backgroundColor: "white",
     boxShadow: "0 0 20px rgba(0, 0, 0, 0.05)",
     padding: "24px 0",
@@ -15,6 +15,8 @@ export const styles = {
     justifyContent: "space-between",
     flexDirection: "column",
     display: "flex",
+    // overflowY: "auto",
+    scrollBehavior: "smooth",
   },
   logo: {
     display: "flex",
@@ -23,6 +25,10 @@ export const styles = {
     padding: "0 24px 24px",
     marginBottom: "16px",
     borderBottom: "1px solid #e5e7eb",
+    position: "sticky",
+    top: -30,
+    backgroundColor: "white",
+    zIndex: 10,
   },
   logoIcon: {
     width: "32px",
@@ -92,7 +98,11 @@ export const styles = {
     marginTop: "auto",
     padding: "16px",
     borderTop: "1px solid #e5e7eb",
-    marginBottom: "16px",
+    marginBottom: "20px",
+    position: "sticky",
+    bottom: 0,
+    backgroundColor: "white",
+    zIndex: 10,
   },
   userInfo: {
     display: "flex",

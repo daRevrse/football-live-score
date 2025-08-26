@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Vérifie l'authentification au chargement
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem("token");
@@ -20,12 +19,14 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        // const response = await api.get("/auth/me");
         const response = await getUserProfile();
         setUser(response.data);
       } catch (error) {
         console.error("Auth check failed:", error);
-        logout();
+        // Si l'authentification échoue, on peut soit rediriger vers la page de connexion,
+        // soit supprimer le token et rediriger vers la page de connexion
+        navigate("/login");
+        // logout();
       } finally {
         setLoading(false);
       }
@@ -37,6 +38,10 @@ export const AuthProvider = ({ children }) => {
   if (loading) {
     return <div>Chargement...</div>; // Ou un spinner
   }
+
+  // if (!user) {
+  //   return <div>Non connecté</div>; // Ou une page de connexion
+  // }
 
   const login = async (credentials) => {
     try {

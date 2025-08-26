@@ -271,4 +271,77 @@ router.delete(
   }
 );
 
+// GET /admin/reporters - Liste tous les reporters
+router.get(
+  "/reporters",
+  authenticate,
+  authorize(["Admin"]),
+  async (req, res) => {
+    try {
+      const reporters = await db.User.findAll({
+        where: { role: "Reporter" },
+        attributes: { exclude: ["password"] },
+      });
+
+      res.json(reporters);
+    } catch (error) {
+      console.error("Error fetching reporters:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+// PUT /admin/matches/:id/assign - Assigner un reporter à un match
+router.put(
+  "/matches/:id/assign",
+  authenticate,
+  authorize(["Admin"]),
+  async (req, res) => {
+    try {
+      const { reporterId } = req.body;
+      const matchId = req.params.id;
+
+      // Vérifier que le match existe
+      const match = await db.Match.findByPk(matchId);
+      if (!match) {
+        return res.status(404).json({ error: "Match not found" });
+      }
+
+      // Si reporterId est null, retirer l'assignation
+      if (reporterId === null) {
+        await match.update({ reporterId: null });
+        return res.json({ message: "Reporter assignment removed" });
+      }
+
+      // Vérifier que l'utilisateur est bien un reporter
+      const reporter = await db.User.findByPk(reporterId);
+      if (!reporter || reporter.role !== "Reporter") {
+        return res.status(400).json({ error: "User is not a reporter" });
+      }
+
+      // Assigner le reporter au match
+      await match.update({ reporterId });
+
+      // Récupérer le match mis à jour avec les relations
+      const updatedMatch = await db.Match.findByPk(matchId, {
+        include: [
+          { model: db.Team, as: "homeTeam" },
+          { model: db.Team, as: "awayTeam" },
+          {
+            model: db.User,
+            as: "reporter",
+            attributes: { exclude: ["password"] },
+          },
+          { model: db.Event, as: "events" },
+        ],
+      });
+
+      res.json(updatedMatch);
+    } catch (error) {
+      console.error("Error assigning reporter:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
 module.exports = router;

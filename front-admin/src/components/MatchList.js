@@ -480,6 +480,7 @@ export default function MatchList() {
               onEdit={setSelectedMatchId}
               onDelete={handleDeleteMatch}
               styles={styles}
+              onAssign={loadMatches}
             />
           ))}
         </div>

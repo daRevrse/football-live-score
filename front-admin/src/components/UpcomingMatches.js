@@ -3,11 +3,13 @@ import { Calendar, AlertCircle, RefreshCw } from "lucide-react";
 import { getUpcomingMatches } from "../services/api";
 import PublicMatchCard from "./PublicMatchCard";
 import { styles } from "./PublicMatchList";
+import PublicMatchDetail from "./PublicMatchDetail";
 
 export default function UpcomingMatches() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   useEffect(() => {
     const fetchUpcomingMatches = async () => {
@@ -84,8 +86,30 @@ export default function UpcomingMatches() {
           {matches
             .sort((a, b) => new Date(a.startAt) - new Date(b.startAt))
             .map((match) => (
-              <PublicMatchCard key={match.id} match={match} />
+              <PublicMatchCard
+                key={match.id}
+                match={match}
+                onClick={() => setSelectedMatch(match)}
+              />
             ))}
+        </div>
+      )}
+
+      {selectedMatch && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <button
+              style={styles.closeButton}
+              onClick={() => setSelectedMatch(null)}
+            >
+              &times;
+            </button>
+            <PublicMatchDetail
+              match={selectedMatch}
+              // teams={teams}
+              onClose={() => setSelectedMatch(null)}
+            />
+          </div>
         </div>
       )}
     </div>

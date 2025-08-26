@@ -30,6 +30,7 @@ import {
   Ban,
 } from "lucide-react";
 import { message } from "antd";
+import { useAuth } from "../context/AuthContext";
 
 // Connexion Socket.IO
 const socket = io("http://localhost:5000");
@@ -51,6 +52,8 @@ export default function MatchEditor({
   const [eventMinute, setEventMinute] = useState("");
   const [eventPlayer, setEventPlayer] = useState("");
   const [error, setError] = useState(null);
+
+  const { user } = useAuth();
 
   const [timerState, setTimerState] = useState({
     currentMinute: initialMatch.currentMinute || 0,
@@ -565,6 +568,19 @@ export default function MatchEditor({
     const { currentMinute } = timerState;
     return Math.min((currentMinute / 90) * 100, 100);
   };
+
+  if (user.role === "Reporter" && match.reporterId !== user.id) {
+    return (
+      <div style={{ padding: "24px", textAlign: "center" }}>
+        <AlertCircle
+          size={48}
+          style={{ color: "#ef4444", marginBottom: "16px" }}
+        />
+        <h3>Accès non autorisé</h3>
+        <p>Vous n'êtes pas assigné à ce match.</p>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>

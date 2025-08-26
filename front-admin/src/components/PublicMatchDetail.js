@@ -15,7 +15,7 @@ import {
 import { getMatch, getMatchEvents } from "../services/api";
 import socket from "../services/socket";
 
-const PublicMatchDetail = ({ match: initialMatch, teams, onClose }) => {
+const PublicMatchDetail = ({ match: initialMatch, onClose }) => {
   // const { matchId } = useParams();
   // const [match, setMatch] = useState(null);
   // const [events, setEvents] = useState([]);

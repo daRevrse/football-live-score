@@ -17,6 +17,8 @@ import {
   Clock,
   CheckCircle,
   Flame,
+  ShieldHalf,
+  Volleyball,
 } from "lucide-react";
 import { styles } from "./styles";
 import UserSection from "./UserSection";
@@ -28,37 +30,37 @@ const Sidebar = () => {
 
   // Menu de base accessible à tous
   const commonMenu = [
-    {
-      to: "/",
-      icon:
-        user.role === "User" ? (
-          <Calendar size={18} style={styles.navLinkIcon} />
-        ) : (
-          <Home size={18} style={styles.navLinkIcon} />
-        ),
-      label: user.role === "User" ? "Matches" : "Accueil",
-      roles: ["Admin", "Reporter", "User"],
-      submenu:
-        user.role === "User"
-          ? [
-              {
-                to: "/matches/live",
-                icon: <Flame size={16} style={styles.navLinkIcon} />,
-                label: "En direct",
-              },
-              {
-                to: "/matches/upcoming",
-                icon: <Clock size={16} style={styles.navLinkIcon} />,
-                label: "À venir",
-              },
-              {
-                to: "/matches/completed",
-                icon: <CheckCircle size={16} style={styles.navLinkIcon} />,
-                label: "Terminés",
-              },
-            ]
-          : null,
-    },
+    // {
+    //   to: "/",
+    //   icon:
+    //     user?.role === "User" ? (
+    //       <Calendar size={18} style={styles.navLinkIcon} />
+    //     ) : (
+    //       <Home size={18} style={styles.navLinkIcon} />
+    //     ),
+    //   label: user?.role === "User" ? "Matches" : "Accueil",
+    //   roles: ["Admin", "Reporter", "User"],
+    //   submenu:
+    //     user?.role === "User"
+    //       ? [
+    //           {
+    //             to: "/matches/live",
+    //             icon: <Flame size={16} style={styles.navLinkIcon} />,
+    //             label: "En direct",
+    //           },
+    //           {
+    //             to: "/matches/upcoming",
+    //             icon: <Clock size={16} style={styles.navLinkIcon} />,
+    //             label: "À venir",
+    //           },
+    //           {
+    //             to: "/matches/completed",
+    //             icon: <CheckCircle size={16} style={styles.navLinkIcon} />,
+    //             label: "Terminés",
+    //           },
+    //         ]
+    //       : null,
+    // },
     {
       to: "/matches",
       icon: <Calendar size={18} style={styles.navLinkIcon} />,
@@ -81,6 +83,12 @@ const Sidebar = () => {
           label: "Terminés",
         },
       ],
+    },
+    {
+      to: "/matches",
+      icon: <ShieldHalf size={18} style={styles.navLinkIcon} />,
+      label: "Gestion Matchs",
+      roles: ["Admin"],
     },
     {
       to: "/teams",
@@ -121,7 +129,7 @@ const Sidebar = () => {
   // Menu Reporter
   const reporterMenu = [
     {
-      to: "/reporter/matches",
+      to: "/matches",
       icon: <Clipboard size={18} style={styles.navLinkIcon} />,
       label: "Gestion Matchs",
       roles: ["Reporter", "Admin"],
@@ -135,17 +143,41 @@ const Sidebar = () => {
   ];
 
   // Menu User
-  const userMenu = [];
+  const userMenu = [
+    {
+      to: "/",
+      icon: <Calendar size={18} style={styles.navLinkIcon} />,
+      label: "Matches",
+      roles: ["User"],
+      submenu: [
+        {
+          to: "/matches/live",
+          icon: <Flame size={16} style={styles.navLinkIcon} />,
+          label: "En direct",
+        },
+        {
+          to: "/matches/upcoming",
+          icon: <Clock size={16} style={styles.navLinkIcon} />,
+          label: "À venir",
+        },
+        {
+          to: "/matches/completed",
+          icon: <CheckCircle size={16} style={styles.navLinkIcon} />,
+          label: "Terminés",
+        },
+      ],
+    },
+  ];
 
   // Fusionner les menus selon le rôle
   const getMenuItems = () => {
-    if (!user) return [];
+    if (!user) return [...userMenu];
 
     const allMenus = [...commonMenu];
 
-    if (user.role === "Admin") {
+    if (user?.role === "Admin") {
       allMenus.push(...adminMenu, ...reporterMenu);
-    } else if (user.role === "Reporter") {
+    } else if (user?.role === "Reporter") {
       allMenus.push(...reporterMenu);
     } else {
       allMenus.push(...userMenu);
@@ -225,9 +257,9 @@ const Sidebar = () => {
       <div>
         <div style={styles.logo}>
           <div style={styles.logoIcon}>
-            <LayoutDashboard size={18} />
+            <Volleyball size={18} />
           </div>
-          <span style={styles.logoText}>SportDashboard</span>
+          <span style={styles.logoText}>TOGO G⚽AL</span>
         </div>
 
         <nav style={styles.nav}>
